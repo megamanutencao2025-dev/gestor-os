@@ -108,4 +108,5 @@ Antes de liberar o sistema:
 3. Verifique `ALLOWED_HOSTS`, CORS e CSRF com os domínios reais.
 4. Nunca publique `.env`, tokens ou chaves de IA no repositório.
 
-O backend Node em `backend_node_legacy` não participa do deploy.
+O repositório contém somente o backend Django ativo. O backend Node usado
+durante a migração foi removido.

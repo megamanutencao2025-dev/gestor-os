@@ -9,8 +9,8 @@ Os passos de paridade e troca de backend foram concluidos:
 - autenticação JWT, permissoes, CRUDs, administracao, solicitacao publica,
   notificacoes, uploads, extracao e provedores de IA estao no Django;
 - importacao e exportacao CSV usam o adaptador relacional do Django;
-- `backend_node_legacy/` foi retirado do fluxo de execucao e permanece somente
-  para consulta temporaria.
+- o backend Node legado e os metadados da plataforma no-code foram removidos
+  depois da publicacao e validacao da aplicacao Django em producao.
 
 Os dados do backup ainda nao foram importados, conforme decisao operacional.
 
@@ -41,12 +41,8 @@ Antes da importacao definitiva:
 4. Importe ordens de servico e notificacoes.
 5. Compare totais e relacionamentos.
 
-## Remocao definitiva do legado
+## Legado removido
 
-O diretorio `backend_node_legacy/` pode ser removido depois que:
-
-1. O backup tiver sido importado e conferido.
-2. Os arquivos fisicos de anexos tiverem sido migrados.
-3. Os fluxos de producao tiverem sido homologados.
-4. Nenhuma chave ou configuracao exclusiva do legado ainda for necessaria.
-
+O diretorio `backend_node_legacy/`, as definicoes no-code em `entities/` e a
+configuracao de paginas duplicada da raiz foram removidos. A compatibilidade
+necessaria para importar o backup permanece implementada no backend Django.

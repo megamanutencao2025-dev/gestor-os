@@ -9,8 +9,8 @@ Sistema de gestao de ordens de servico com frontend React e API Django.
 - `docs/`: documentacao de arquitetura e migracao de dados
 - `render.yaml`: infraestrutura do frontend e da API no Render
 
-O PostgreSQL de producao e hospedado no Neon. O backend Node legado nao faz parte
-da aplicacao ativa nem do deploy.
+O PostgreSQL de producao e hospedado no Neon. O backend Node legado foi removido
+depois da migracao e nao faz parte da aplicacao ativa.
 
 ## Desenvolvimento local
 
