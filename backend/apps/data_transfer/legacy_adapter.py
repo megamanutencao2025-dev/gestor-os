@@ -469,6 +469,7 @@ def export_work_orders():
                     "hora_inicio": start_time,
                     "data_fim": end_date,
                     "hora_fim": end_time,
+                    "defeito_identificado": service.identified_defect,
                     "atividade": service.activity,
                     "total_horas": service.total_hours,
                     "valor_total": service.total_amount,
@@ -950,6 +951,7 @@ def import_work_order_children(work_order, row):
     for item in as_list(row.get("servicos")):
         service = WorkService.objects.create(
             work_order=work_order,
+            identified_defect=as_text(item.get("defeito_identificado")),
             activity=as_text(item.get("atividade")) or "Atividade importada",
             started_at=combine_legacy_datetime(
                 item.get("data_inicio"),

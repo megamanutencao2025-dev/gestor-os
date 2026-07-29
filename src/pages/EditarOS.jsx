@@ -396,6 +396,7 @@ export default function EditarOS() {
           hora_inicio: servico.hora_inicio || '',
           data_fim: servico.data_fim || servico.data_inicio || '', // Ensure data_fim is also loaded
           hora_fim: servico.hora_fim || '',
+          defeito_identificado: servico.defeito_identificado || '',
           atividade: servico.atividade || '',
           total_horas: totalHoras,
           valor_total: valorTotal,
@@ -600,6 +601,7 @@ export default function EditarOS() {
       hora_inicio: '',
       data_fim: '', // Added data_fim for consistency
       hora_fim: '',
+      defeito_identificado: '',
       atividade: '',
       total_horas: 0,
       valor_total: 0,
@@ -952,6 +954,7 @@ export default function EditarOS() {
             mantenedor_nome: m.nome || m.mantenedor_nome || "", // Robust name handling
             custo_hora: parseFloat(m.custo_hora || 0)
           })),
+          defeito_identificado: servico.defeito_identificado || '',
           atividade: servico.atividade || '',
           total_horas: parseFloat(servico.total_horas) || 0,
           valor_total: parseFloat(servico.valor_total) || 0,
@@ -1370,6 +1373,12 @@ export default function EditarOS() {
               <td>${servico.hora_inicio || '-'}</td>
               <td>${servico.hora_fim || '-'}</td>
               <td>${servico.total_horas ? `${servico.total_horas.toFixed(2)}h` : '-'}</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="description-cell">
+                <strong>Defeito identificado</strong><br/>
+                ${servico.defeito_identificado || ''}
+              </td>
             </tr>
             <tr>
               <td colspan="5" class="description-cell">
@@ -2041,6 +2050,9 @@ export default function EditarOS() {
                               </div>
 
                               <p className="text-sm text-slate-600 mt-2">
+                                <strong>Defeito identificado:</strong> {servico.defeito_identificado || '-'}
+                              </p>
+                              <p className="text-sm text-slate-600 mt-1">
                                 <strong>Atividade:</strong> {servico.atividade || '-'}
                               </p>
                               <p className="text-sm font-semibold text-green-700 mt-2">

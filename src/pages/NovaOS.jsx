@@ -390,6 +390,7 @@ export default function NovaOS() {
       hora_inicio: '',
       data_fim: '', // Adicionado para consistência
       hora_fim: '', // Adicionado para consistência
+      defeito_identificado: '',
       atividade: '',
       total_horas: 0,
       valor_total: 0,
@@ -717,6 +718,7 @@ export default function NovaOS() {
         hora_inicio: servico.hora_inicio || '',
         data_fim: servico.data_fim || servico.data_inicio || '',
         hora_fim: servico.hora_fim || '',
+        defeito_identificado: servico.defeito_identificado || '',
         atividade: servico.atividade || '',
         total_horas: parseFloat(servico.total_horas) || 0,
         valor_total: parseFloat(servico.valor_total) || 0,
@@ -1363,6 +1365,9 @@ export default function NovaOS() {
                               </div>
 
                               <p className="text-sm text-slate-600 mt-2">
+                                <strong>Defeito identificado:</strong> {servico.defeito_identificado || '-'}
+                              </p>
+                              <p className="text-sm text-slate-600 mt-1">
                                 <strong>Atividade:</strong> {servico.atividade || '-'}
                               </p>
                               <p className="text-sm font-semibold text-green-700 mt-2">

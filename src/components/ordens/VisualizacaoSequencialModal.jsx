@@ -353,6 +353,11 @@ export default function VisualizacaoSequencialModal({ isOpen, onClose, ordensSer
                   <span>${formatCurrency(servico.valor_total)}</span>
                 </div>
               </div>
+              ${servico.defeito_identificado ? `
+              <div class="servico-atividade">
+                <div class="servico-atividade-title">Defeito identificado:</div>
+                <div>${servico.defeito_identificado}</div>
+              </div>` : ''}
               ${servico.atividade ? `
               <div class="servico-atividade">
                 <div class="servico-atividade-title">Atividade:</div>

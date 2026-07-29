@@ -210,6 +210,7 @@ class WorkService(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="services",
     )
+    identified_defect = models.TextField(blank=True)
     activity = models.TextField()
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)

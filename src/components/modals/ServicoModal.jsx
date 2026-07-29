@@ -551,7 +551,17 @@ export default function ServicoModal({ isOpen, onClose, servico, onSave, mantene
             </div>
           )}
 
-          {/* Atividade - AUMENTADO PARA 4 LINHAS */}
+          <div>
+            <Label>Defeito Identificado</Label>
+            <Textarea
+              value={formData.defeito_identificado || ""}
+              onChange={(e) => updateField('defeito_identificado', e.target.value)}
+              placeholder="Descreva o defeito encontrado durante o diagnóstico"
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+
           <div>
             <Label>Atividade Realizada</Label>
             <Textarea

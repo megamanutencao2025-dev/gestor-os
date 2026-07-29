@@ -188,6 +188,7 @@ def test_work_order_backup_round_trip_preserves_relations_and_totals():
                         "custo_hora": 50,
                     }
                 ],
+                "defeito_identificado": "Rolamento com folga",
                 "atividade": "Inspecao e ajuste",
                 "total_horas": 2,
                 "valor_total": 100,
@@ -243,6 +244,7 @@ def test_work_order_backup_round_trip_preserves_relations_and_totals():
     assert exported["id"] == "work-order-legacy-1"
     assert exported["equipamentos"][0]["equipamento_id"] == "equipment-1"
     assert exported["servicos"][0]["mantenedores"][0]["mantenedor_id"] == ("maintainer-1")
+    assert exported["servicos"][0]["defeito_identificado"] == "Rolamento com folga"
     assert exported["materiais"][0]["material_id"] == "material-1"
     assert exported["terceirizados"][0]["prestadora_id"] == "provider-1"
 
@@ -260,6 +262,7 @@ def test_work_order_backup_round_trip_preserves_relations_and_totals():
     assert reimported.updated == 1
     assert WorkOrder.objects.count() == 1
     assert work_order.services.count() == 1
+    assert work_order.services.get().identified_defect == "Rolamento com folga"
     assert work_order.materials.count() == 1
     assert work_order.outsourced_services.count() == 1
     assert work_order.grand_total == Decimal("225.00")

@@ -90,6 +90,7 @@ const DetalhesOSModal = ({ os: rawOs, isOpen, onClose }) => {
                 {os.servicos.map((servico, idx) => (
                   <div key={idx} className="bg-slate-50 p-3 rounded">
                     <p><strong>Mantenedor:</strong> {servico.mantenedor_nome || '-'}</p>
+                    <p><strong>Defeito identificado:</strong> {servico.defeito_identificado || '-'}</p>
                     <p><strong>Atividade:</strong> {servico.atividade || '-'}</p>
                     <p><strong>Total Horas:</strong> {(servico.total_horas || 0).toFixed(2)}h</p>
                     <p><strong>Valor:</strong> {(servico.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>

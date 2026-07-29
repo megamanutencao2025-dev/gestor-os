@@ -715,6 +715,11 @@ export default function VisualizacaoOSModal({ isOpen, onClose, os: rawOs }) {
                     <span>${formatCurrency(servico.valor_total)}</span>
                   </div>
                 </div>
+                ${servico.defeito_identificado ? `
+                <div class="servico-atividade">
+                  <div class="servico-atividade-title">Defeito identificado:</div>
+                  <div>${servico.defeito_identificado}</div>
+                </div>` : ''}
                 ${servico.atividade ? `
                 <div class="servico-atividade">
                   <div class="servico-atividade-title">Atividade:</div>
@@ -1004,6 +1009,14 @@ export default function VisualizacaoOSModal({ isOpen, onClose, os: rawOs }) {
                           </p>
                         </div>
                       </div>
+                      {servico.defeito_identificado && (
+                        <div className="text-sm mb-3">
+                          <p className="text-slate-600 font-medium mb-1">Defeito Identificado:</p>
+                          <p className="text-slate-900 bg-white p-2 rounded border">
+                            {servico.defeito_identificado}
+                          </p>
+                        </div>
+                      )}
                       {servico.atividade && (
                         <div className="text-sm">
                           <p className="text-slate-600 font-medium mb-1">Atividade Realizada:</p>
