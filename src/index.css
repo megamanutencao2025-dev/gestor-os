@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* :root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+} */
+
+
+
+@layer base {
+  :root {
+    --background: 220 43% 97%;
+    --foreground: 221 39% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 14%;
+    --primary: 217 81% 49%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 214 30% 95%;
+    --secondary-foreground: 221 39% 14%;
+    --muted: 210 40% 98%;
+    --muted-foreground: 216 22% 39%;
+    --accent: 216 100% 97%;
+    --accent-foreground: 217 81% 35%;
+    --destructive: 355 69% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 216 29% 92%;
+    --input: 216 29% 92%;
+    --ring: 217 81% 49%;
+    --chart-1: 217 81% 49%;
+    --chart-2: 161 80% 34%;
+    --chart-3: 38 92% 48%;
+    --chart-4: 355 69% 55%;
+    --chart-5: 270 55% 58%;
+    --radius: 0.5625rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 221 29% 27%;
+    --sidebar-primary: 217 81% 49%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 216 100% 97%;
+    --sidebar-accent-foreground: 217 81% 35%;
+    --sidebar-border: 216 29% 92%;
+    --sidebar-ring: 217 81% 49%;
+  }
+  .dark {
+    --background: 211 49% 8%;
+    --foreground: 216 36% 97%;
+    --card: 210 33% 12%;
+    --card-foreground: 216 36% 97%;
+    --popover: 209 42% 17%;
+    --popover-foreground: 216 36% 97%;
+    --primary: 217 90% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 209 42% 17%;
+    --secondary-foreground: 216 36% 97%;
+    --muted: 210 38% 10%;
+    --muted-foreground: 214 23% 69%;
+    --accent: 209 42% 17%;
+    --accent-foreground: 216 36% 97%;
+    --destructive: 355 100% 70%;
+    --destructive-foreground: 211 49% 8%;
+    --border: 211 33% 21%;
+    --input: 211 33% 21%;
+    --ring: 217 100% 70%;
+    --chart-1: 217 90% 60%;
+    --chart-2: 161 62% 52%;
+    --chart-3: 39 100% 65%;
+    --chart-4: 355 100% 70%;
+    --chart-5: 270 75% 72%;
+    --sidebar-background: 211 45% 9%;
+    --sidebar-foreground: 216 36% 97%;
+    --sidebar-primary: 217 90% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 209 42% 17%;
+    --sidebar-accent-foreground: 216 36% 97%;
+    --sidebar-border: 211 33% 21%;
+    --sidebar-ring: 217 100% 70%;
+  }
+}
+
+
+
+@layer base {
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-width: 320px;
+    min-height: 100vh;
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Compatibility layer for legacy utility classes while screens migrate to tokens. */
+@layer utilities {
+  .dark .bg-white { background-color: #111d2a !important; }
+  .dark .bg-slate-50 { background-color: #0e1925 !important; }
+  .dark .bg-slate-100 { background-color: #0b1420 !important; }
+  .dark .bg-slate-200 { background-color: #192b3d !important; }
+  .dark .bg-gray-50 { background-color: #0e1925 !important; }
+  .dark .bg-gray-100 { background-color: #142230 !important; }
+  .dark .bg-blue-50 { background-color: #142d4f !important; }
+  .dark .bg-blue-100 { background-color: #18314f !important; }
+  .dark .bg-emerald-50 { background-color: #12382f !important; }
+  .dark .bg-green-50 { background-color: #12382f !important; }
+  .dark .bg-amber-50 { background-color: #3c3019 !important; }
+  .dark .bg-yellow-50 { background-color: #3c3019 !important; }
+  .dark .bg-orange-50 { background-color: #3c3019 !important; }
+  .dark .bg-red-50 { background-color: #42232b !important; }
+  .dark .bg-purple-50 { background-color: #30234a !important; }
+
+  .dark .text-black { color: #f4f7fb !important; }
+  .dark .text-slate-900 { color: #f4f7fb !important; }
+  .dark .text-slate-950 { color: #f4f7fb !important; }
+  .dark .text-slate-300 { color: #aebbd0 !important; }
+  .dark .text-slate-800 { color: #e5edf6 !important; }
+  .dark .text-slate-700 { color: #cbd5e1 !important; }
+  .dark .text-slate-600 { color: #bdc8d6 !important; }
+  .dark .text-slate-500 { color: #8997aa !important; }
+  .dark .text-slate-400 { color: #9aa8bb !important; }
+  .dark .text-gray-900 { color: #f4f7fb !important; }
+  .dark .text-gray-800 { color: #e5edf6 !important; }
+  .dark .text-gray-700 { color: #cbd5e1 !important; }
+  .dark .text-gray-600 { color: #bdc8d6 !important; }
+  .dark .text-gray-500 { color: #8997aa !important; }
+
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-300,
+  .dark .border-gray-200,
+  .dark .border-gray-300 { border-color: #223246 !important; }
+  .dark .border-blue-200 { border-color: #315b8d !important; }
+  .dark .border-emerald-200,
+  .dark .border-green-200 { border-color: #246b57 !important; }
+  .dark .border-amber-200,
+  .dark .border-orange-200,
+  .dark .border-yellow-200 { border-color: #85662d !important; }
+  .dark .border-red-200 { border-color: #81404c !important; }
+
+  .dark .bg-blue-600 { background-color: #3d83f5 !important; }
+  .dark .bg-blue-700 { background-color: #66a0ff !important; }
+  .dark .bg-emerald-600,
+  .dark .bg-green-600 { background-color: #35d39a !important; }
+  .dark .bg-red-600 { background-color: #ff6673 !important; }
+  .dark .bg-orange-500 { background-color: #ffc34d !important; }
+  .dark .text-blue-600,
+  .dark .text-blue-700,
+  .dark .text-blue-800,
+  .dark .text-blue-900 { color: #8ab8ff !important; }
+  .dark .text-emerald-600,
+  .dark .text-emerald-700,
+  .dark .text-emerald-800,
+  .dark .text-green-600,
+  .dark .text-green-700,
+  .dark .text-green-800,
+  .dark .text-green-900 { color: #65e0b2 !important; }
+  .dark .text-red-500,
+  .dark .text-red-600,
+  .dark .text-red-700 { color: #ff8791 !important; }
+  .dark .text-orange-500,
+  .dark .text-orange-600,
+  .dark .text-orange-700,
+  .dark .text-orange-800 { color: #ffc34d !important; }
+  .dark .text-amber-600,
+  .dark .text-amber-700,
+  .dark .text-amber-900 { color: #ffc34d !important; }
+  .dark .text-purple-600,
+  .dark .text-purple-700,
+  .dark .text-purple-800,
+  .dark .text-indigo-700,
+  .dark .text-sky-700 { color: #b9a1ff !important; }
+
+  .dark .bg-green-100,
+  .dark .bg-emerald-100 { background-color: #12382f !important; }
+  .dark .bg-red-100 { background-color: #42232b !important; }
+  .dark .bg-orange-100,
+  .dark .bg-amber-100,
+  .dark .bg-yellow-100 { background-color: #3c3019 !important; }
+  .dark .bg-purple-100,
+  .dark .bg-indigo-50 { background-color: #30234a !important; }
+
+  .dark .from-slate-50 { --tw-gradient-from: #0b1420 var(--tw-gradient-from-position) !important; }
+  .dark .to-slate-100 { --tw-gradient-to: #111d2a var(--tw-gradient-to-position) !important; }
+  .dark .hover\:bg-slate-50:hover { background-color: #192b3d !important; }
+  .dark .hover\:bg-slate-100:hover { background-color: #192b3d !important; }
+  .dark .hover\:bg-white:hover { background-color: #192b3d !important; }
+  .dark .placeholder\:text-slate-400::placeholder { color: #8997aa !important; }
+
+  .dark input,
+  .dark textarea,
+  .dark select { color-scheme: dark; }
+}

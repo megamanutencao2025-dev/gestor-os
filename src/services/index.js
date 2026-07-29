@@ -1,0 +1,10 @@
+export { localizacoesService } from "./localizacoesService";
+export { familiasEquipamentoService } from "./familiasEquipamentoService";
+export { tiposManutencaoService } from "./tiposManutencaoService";
+export { statusOsService } from "./statusOsService";
+export { prioridadesService } from "./prioridadesService";
+export { areasManutencaoService } from "./areasManutencaoService";
+export { centrosCustoService } from "./centrosCustoService";
+export { mantenedoresService } from "./mantenedoresService";
+export { materiaisService } from "./materiaisService";
+export { prestadorasService } from "./prestadorasService";

@@ -1,0 +1,87 @@
+{
+  "name": "Equipamento",
+  "type": "object",
+  "properties": {
+    "codigo": {
+      "type": "string",
+      "description": "C\u00f3digo \u00fanico do equipamento. Opcional para sub-equipamentos."
+    },
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do equipamento"
+    },
+    "marca": {
+      "type": "string",
+      "description": "Marca do equipamento"
+    },
+    "modelo": {
+      "type": "string",
+      "description": "Modelo do equipamento"
+    },
+    "fabricante": {
+      "type": "string",
+      "description": "Fabricante do equipamento"
+    },
+    "localizacao_id": {
+      "type": "string",
+      "description": "ID da localiza\u00e7\u00e3o"
+    },
+    "localizacao_celula": {
+      "type": "string",
+      "description": "C\u00e9lula/Descri\u00e7\u00e3o da localiza\u00e7\u00e3o do equipamento"
+    },
+    "localizacao_setor": {
+      "type": "string",
+      "description": "Setor da localiza\u00e7\u00e3o do equipamento"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Ativo",
+        "Inativo"
+      ],
+      "default": "Ativo",
+      "description": "Status do equipamento"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "ID do equipamento pai (para hierarquia). Se vazio, \u00e9 raiz"
+    },
+    "pecas_por_hora": {
+      "type": "number",
+      "description": "Quantidade de pe\u00e7as produzidas por hora (apenas para equipamentos principais)"
+    },
+    "imagens": {
+      "type": "array",
+      "description": "Imagens do equipamento (apenas para equipamentos principais)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "tamanho": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "componentes": {
+      "type": "array",
+      "description": "Lista de componentes/sub-equipamentos para estrutura\u00e7\u00e3o na UI. A l\u00f3gica de hierarquia ainda usa parent_id.",
+      "items": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  "required": [
+    "descricao"
+  ]
+}

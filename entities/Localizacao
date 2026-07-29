@@ -1,0 +1,21 @@
+{
+  "name": "Localizacao",
+  "type": "object",
+  "properties": {
+    "descricao": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o da localiza\u00e7\u00e3o"
+    },
+    "setor": {
+      "type": "string",
+      "description": "Setor da localiza\u00e7\u00e3o"
+    },
+    "observacoes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a localiza\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "descricao"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Mantenedor",
+  "type": "object",
+  "properties": {
+    "nome": {
+      "type": "string",
+      "description": "Nome do mantenedor"
+    },
+    "cargo": {
+      "type": "string",
+      "description": "Cargo do mantenedor"
+    },
+    "custo_hora": {
+      "type": "number",
+      "description": "Custo por hora"
+    }
+  },
+  "required": [
+    "nome",
+    "cargo",
+    "custo_hora"
+  ]
+}
