@@ -177,9 +177,9 @@ button:focus-visible {
   .dark .bg-blue-100 { background-color: #18314f !important; }
   .dark .bg-emerald-50 { background-color: #12382f !important; }
   .dark .bg-green-50 { background-color: #12382f !important; }
-  .dark .bg-amber-50 { background-color: #3c3019 !important; }
-  .dark .bg-yellow-50 { background-color: #3c3019 !important; }
-  .dark .bg-orange-50 { background-color: #3c3019 !important; }
+  .dark .bg-amber-50 { background-color: #172230 !important; }
+  .dark .bg-yellow-50 { background-color: #172230 !important; }
+  .dark .bg-orange-50 { background-color: #172230 !important; }
   .dark .bg-red-50 { background-color: #42232b !important; }
   .dark .bg-purple-50 { background-color: #30234a !important; }
 
@@ -249,7 +249,7 @@ button:focus-visible {
   .dark .bg-red-100 { background-color: #42232b !important; }
   .dark .bg-orange-100,
   .dark .bg-amber-100,
-  .dark .bg-yellow-100 { background-color: #3c3019 !important; }
+  .dark .bg-yellow-100 { background-color: #1b2837 !important; }
   .dark .bg-purple-100,
   .dark .bg-indigo-50 { background-color: #30234a !important; }
 

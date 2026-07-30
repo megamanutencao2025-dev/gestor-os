@@ -76,7 +76,7 @@ function highlightText(text, searchTerm) {
     <span>
       {parts.map((part, i) => 
         part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <mark key={i} className="bg-yellow-200 font-semibold">{part}</mark>
+          <mark key={i} className="rounded-sm bg-primary/20 px-0.5 font-semibold text-foreground">{part}</mark>
         ) : (
           <span key={i}>{part}</span>
         )
@@ -102,19 +102,21 @@ function TreeNode({
   const label = getLevelLabel(level);
   
   // Verificar se este item corresponde à pesquisa
-  const matchesSearch = !searchTerm || 
-    equipamento.codigo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.localizacao_celula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.localizacao_setor?.toLowerCase().includes(searchTerm.toLowerCase());
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const matchesSearch = Boolean(normalizedSearch) && (
+    equipamento.codigo?.toLowerCase().includes(normalizedSearch) ||
+    equipamento.descricao?.toLowerCase().includes(normalizedSearch) ||
+    equipamento.localizacao_celula?.toLowerCase().includes(normalizedSearch) ||
+    equipamento.localizacao_setor?.toLowerCase().includes(normalizedSearch)
+  );
 
   // Mostrar se: corresponde à pesquisa OU tem filhos que correspondem OU não há pesquisa
-  if (!matchesSearch && !hasMatchInSubtree && searchTerm) return null;
+  if (!matchesSearch && !hasMatchInSubtree && normalizedSearch) return null;
 
   return (
     <div>
       <div 
-        className={`flex items-center gap-2 py-2.5 px-3 hover:bg-slate-50 rounded transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''} ${matchesSearch ? 'bg-yellow-50' : ''}`}
+        className={`flex items-center gap-2 rounded px-3 py-2.5 transition-colors hover:bg-muted/60 ${isSelected ? 'border-l-4 border-primary bg-primary/10' : ''} ${matchesSearch ? 'bg-primary/[0.08] ring-1 ring-inset ring-primary/25' : ''}`}
         style={{ paddingLeft: `${level * 12}px` }}
       >
         {hasChildren ? (
@@ -220,6 +222,7 @@ export default function EquipamentoSelector({
   // Verificar se um equipamento ou seus descendentes correspondem à pesquisa
   const checkMatchInSubtree = useMemo(() => {
     const cache = {};
+    const normalizedSearch = searchTerm.trim().toLowerCase();
     
     function hasMatch(equipamentoId) {
       if (cache[equipamentoId] !== undefined) return cache[equipamentoId];
@@ -231,11 +234,11 @@ export default function EquipamentoSelector({
       }
       
       // Verificar se o próprio item corresponde
-      const matchesSelf = !searchTerm ||
-        equipamento.codigo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        equipamento.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        equipamento.localizacao_celula?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        equipamento.localizacao_setor?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSelf = !normalizedSearch ||
+        equipamento.codigo?.toLowerCase().includes(normalizedSearch) ||
+        equipamento.descricao?.toLowerCase().includes(normalizedSearch) ||
+        equipamento.localizacao_celula?.toLowerCase().includes(normalizedSearch) ||
+        equipamento.localizacao_setor?.toLowerCase().includes(normalizedSearch);
       
       if (matchesSelf) {
         cache[equipamentoId] = true;
