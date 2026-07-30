@@ -347,7 +347,7 @@ export default function ServicoModal({ isOpen, onClose, servico, onSave, mantene
 
             {/* Checkbox de Horas Individualizadas - Só aparece no modo horas_diretas */}
             {modoApontamento === "horas_diretas" && (
-              <div className="border rounded-lg p-4 bg-amber-50">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-4">
                 <div className="flex items-center space-x-2 mb-3">
                   <input
                     type="checkbox"
@@ -360,7 +360,7 @@ export default function ServicoModal({ isOpen, onClose, servico, onSave, mantene
                     Informar horas diferentes para cada mantenedor
                   </Label>
                 </div>
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-muted-foreground">
                   {horasIndividualizadas 
                     ? "Você pode registrar tempos diferentes para cada trabalhador" 
                     : "Todas as pessoas trabalharão o mesmo total de horas"}

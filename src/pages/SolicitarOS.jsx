@@ -397,7 +397,37 @@ export default function SolicitarOS() {
               <CardContent className="space-y-5">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div><Label htmlFor="tipo">Tipo de manutenção <span className="text-red-500">*</span></Label><Select value={formData.tipo_id} onValueChange={handleTipoChange}><SelectTrigger id="tipo" className="mt-2 min-h-11"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger><SelectContent>{tipos.map((tipo) => <SelectItem key={tipo.id} value={tipo.id}>{tipo.descricao}</SelectItem>)}</SelectContent></Select></div><div><Label htmlFor="area">Área de manutenção <span className="font-normal text-slate-400">(opcional)</span></Label><Select value={formData.area_id} onValueChange={handleAreaChange}><SelectTrigger id="area" className="mt-2 min-h-11"><SelectValue placeholder="Selecione a área" /></SelectTrigger><SelectContent>{areas.map((area) => <SelectItem key={area.id} value={area.id}>{area.descricao}</SelectItem>)}</SelectContent></Select></div></div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div><Label htmlFor="data_programada"><Calendar className="mr-1 inline h-4 w-4" />Data desejada</Label><Input id="data_programada" type="date" value={formData.data_programada} onChange={(event) => setFormData((previous) => ({ ...previous, data_programada: event.target.value }))} className="mt-2 min-h-11" /></div><div><Label htmlFor="hora_programada">Horário desejado</Label><Input id="hora_programada" type="time" value={formData.hora_programada} onChange={(event) => setFormData((previous) => ({ ...previous, hora_programada: event.target.value }))} className="mt-2 min-h-11" /></div></div>
-                <div className={`rounded-xl border p-4 ${formData.parada_completa === null ? "border-red-300 bg-red-50/60" : "border-slate-200 bg-slate-50"}`}><div className="mb-3 flex items-start justify-between gap-3"><div><Label className="font-semibold">A máquina parou completamente? <span className="text-red-500">*</span></Label><p className="mt-1 text-xs text-slate-500">Marque uma opção para registrar corretamente a solicitação.</p></div><span className="shrink-0 rounded-full bg-red-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-700">Obrigatório</span></div><RadioGroup value={formData.parada_completa === null ? "" : formData.parada_completa ? "sim" : "nao"} onValueChange={(value) => setFormData((previous) => ({ ...previous, parada_completa: value === "sim" }))} className="grid grid-cols-1 gap-2 sm:grid-cols-2"><label htmlFor="parada-sim" className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border bg-white p-3 transition ${formData.parada_completa === true ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}><RadioGroupItem id="parada-sim" value="sim" /><span><span className="block text-sm font-medium">Sim, a máquina parou</span><span className="block text-xs text-slate-500">O defeito interrompeu a operação.</span></span></label><label htmlFor="parada-nao" className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border bg-white p-3 transition ${formData.parada_completa === false ? "border-amber-500 ring-2 ring-amber-100" : "border-slate-200"}`}><RadioGroupItem id="parada-nao" value="nao" /><span><span className="block text-sm font-medium">Não, continuou operando</span><span className="block text-xs text-slate-500">A equipe pode programar a intervenção.</span></span></label></RadioGroup></div>
+                <div className={`rounded-lg border p-4 transition-colors ${formData.parada_completa === null ? "border-destructive/45 bg-destructive/[0.04]" : "border-border bg-muted/25"}`}>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <Label className="font-semibold text-foreground">A máquina parou completamente? <span className="text-red-500">*</span></Label>
+                      <p className="mt-1 text-xs text-muted-foreground">Marque uma opção para registrar corretamente a solicitação.</p>
+                    </div>
+                    {formData.parada_completa === null && (
+                      <span className="shrink-0 rounded-full border border-destructive/25 bg-destructive/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-destructive">Obrigatório</span>
+                    )}
+                  </div>
+                  <RadioGroup
+                    value={formData.parada_completa === null ? "" : formData.parada_completa ? "sim" : "nao"}
+                    onValueChange={(value) => setFormData((previous) => ({ ...previous, parada_completa: value === "sim" }))}
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+                  >
+                    <label htmlFor="parada-sim" className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border bg-background/60 p-3 transition-colors ${formData.parada_completa === true ? "border-emerald-500/70 bg-emerald-500/10" : "border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"}`}>
+                      <RadioGroupItem id="parada-sim" value="sim" />
+                      <span>
+                        <span className="block text-sm font-medium text-foreground">Sim, a máquina parou</span>
+                        <span className="block text-xs text-muted-foreground">O defeito interrompeu a operação.</span>
+                      </span>
+                    </label>
+                    <label htmlFor="parada-nao" className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border bg-background/60 p-3 transition-colors ${formData.parada_completa === false ? "border-amber-500/70 bg-amber-500/10" : "border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04]"}`}>
+                      <RadioGroupItem id="parada-nao" value="nao" />
+                      <span>
+                        <span className="block text-sm font-medium text-foreground">Não, continuou operando</span>
+                        <span className="block text-xs text-muted-foreground">A equipe pode programar a intervenção.</span>
+                      </span>
+                    </label>
+                  </RadioGroup>
+                </div>
               </CardContent>
             </Card>
           )}

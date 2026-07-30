@@ -1551,12 +1551,12 @@ export default function EditarOS() {
 
       <form onSubmit={handleSubmit}>
         <Tabs defaultValue="solicitacao" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-100">
-            <TabsTrigger value="solicitacao">Solicitação</TabsTrigger>
-            <TabsTrigger value="servicos">Serviços</TabsTrigger>
-            <TabsTrigger value="materiais">Materiais</TabsTrigger>
-            <TabsTrigger value="terceirizados">Terceirizados</TabsTrigger>
-            <TabsTrigger value="outros">Outros</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 border border-border bg-card/70 p-1">
+            <TabsTrigger value="solicitacao" className="border border-transparent text-muted-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none">Solicitação</TabsTrigger>
+            <TabsTrigger value="servicos" className="border border-transparent text-muted-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none">Serviços</TabsTrigger>
+            <TabsTrigger value="materiais" className="border border-transparent text-muted-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none">Materiais</TabsTrigger>
+            <TabsTrigger value="terceirizados" className="border border-transparent text-muted-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none">Terceirizados</TabsTrigger>
+            <TabsTrigger value="outros" className="border border-transparent text-muted-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none">Outros</TabsTrigger>
           </TabsList>
 
           <TabsContent value="solicitacao">
@@ -1880,18 +1880,18 @@ export default function EditarOS() {
                       </div>
                     </div>
                     
-                    <div className={`rounded-xl border p-4 transition-colors ${formData.maquina_parada === null ? "border-red-300 bg-red-50/60" : "border-slate-200 bg-slate-50"}`}>
+                    <div className={`rounded-lg border p-4 transition-colors ${formData.maquina_parada === null ? "border-destructive/45 bg-destructive/[0.04]" : "border-border bg-muted/25"}`}>
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <div>
-                          <Label className="text-sm font-semibold text-slate-900">
+                          <Label className="text-sm font-semibold text-foreground">
                             A máquina está realmente parada por causa do defeito? <span className="text-red-500">*</span>
                           </Label>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             Marque uma opção para registrar corretamente o tempo de parada.
                           </p>
                         </div>
                         {formData.maquina_parada === null && (
-                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                          <span className="inline-flex items-center rounded-full border border-destructive/25 bg-destructive/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-destructive">
                             Obrigatório
                           </span>
                         )}
@@ -1910,12 +1910,12 @@ export default function EditarOS() {
                           <RadioGroupItem id="maquina_parada_sim" value="sim" className="peer sr-only" />
                           <Label
                             htmlFor="maquina_parada_sim"
-                            className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-emerald-300 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-50"
+                            className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/60 p-4 transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] peer-data-[state=checked]:border-emerald-500/70 peer-data-[state=checked]:bg-emerald-500/10"
                           >
                             <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
                             <div className="space-y-1">
-                              <div className="font-medium text-slate-900">Sim, a máquina parou</div>
-                              <p className="text-xs text-slate-500">O defeito interrompeu a operação normalmente.</p>
+                              <div className="font-medium text-foreground">Sim, a máquina parou</div>
+                              <p className="text-xs text-muted-foreground">O defeito interrompeu a operação normalmente.</p>
                             </div>
                           </Label>
                         </div>
@@ -1924,12 +1924,12 @@ export default function EditarOS() {
                           <RadioGroupItem id="maquina_parada_nao" value="nao" className="peer sr-only" />
                           <Label
                             htmlFor="maquina_parada_nao"
-                            className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-colors hover:border-amber-300 peer-data-[state=checked]:border-amber-500 peer-data-[state=checked]:bg-amber-50"
+                            className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/60 p-4 transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04] peer-data-[state=checked]:border-amber-500/70 peer-data-[state=checked]:bg-amber-500/10"
                           >
                             <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
                             <div className="space-y-1">
-                              <div className="font-medium text-slate-900">Não, ela continuou operando</div>
-                              <p className="text-xs text-slate-500">Use o tempo manual se a parada foi parcial.</p>
+                              <div className="font-medium text-foreground">Não, ela continuou operando</div>
+                              <p className="text-xs text-muted-foreground">Use o tempo manual se a parada foi parcial.</p>
                             </div>
                           </Label>
                         </div>
@@ -1937,8 +1937,8 @@ export default function EditarOS() {
                     </div>
 
                     {formData.maquina_parada === false && (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <Label htmlFor="tempo_parada_manual" className="text-sm font-medium text-amber-900">
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-4">
+                        <Label htmlFor="tempo_parada_manual" className="text-sm font-medium text-foreground">
                           Tempo de Parada Real da Máquina (minutos)
                         </Label>
                         <Input
@@ -1948,9 +1948,9 @@ export default function EditarOS() {
                           value={formData.tempo_parada_manual}
                           onChange={(e) => setFormData(prev => ({ ...prev, tempo_parada_manual: e.target.value }))}
                           placeholder="Ex: 120"
-                          className="mt-2 bg-white"
+                          className="mt-2 bg-background"
                         />
-                        <p className="text-xs text-amber-700 mt-2">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           💡 Como a máquina não ficou totalmente parada, informe o tempo real (em minutos) que ela ficou parada para execução do serviço.
                         </p>
                       </div>
