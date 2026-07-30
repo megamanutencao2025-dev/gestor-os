@@ -102,6 +102,7 @@ def classify_dashboard_references(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('assets', '0002_equipment_serial_number'),
