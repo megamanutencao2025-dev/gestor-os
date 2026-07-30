@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { appApi } from "@/api/appClient";
 import { useAuth } from "@/lib/AuthContext";
+import { preloadPage } from "@/lib/page-loaders";
 import { 
   Settings, 
   Wrench, 
@@ -30,16 +31,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useTheme } from "next-themes";
 
 const navigationItems = [
-  { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home, moduleKey: "dashboard" },
-  { title: "Ordens de Serviço", url: createPageUrl("OrdemServico"), icon: FileText, moduleKey: "ordens_servico" },
-  { title: "Nova OS", url: createPageUrl("NovaOS"), icon: Wrench, moduleKey: "nova_os" },
-  { title: "Planejamento", url: createPageUrl("PlanejamentoManutencao"), icon: Calendar, moduleKey: "planejamento_manutencao" },
-  { title: "Cadastros", url: createPageUrl("Cadastros"), icon: Database, moduleKey: "cadastros" },
-  { title: "Relatórios", url: createPageUrl("Relatorios"), icon: BarChart3, moduleKey: "relatorios" },
-  { title: "Exportar Dados", url: createPageUrl("ExportarDados"), icon: Settings, moduleKey: "exportar_dados" },
-  { title: "Assistente IA", url: createPageUrl("AssistenteIA"), icon: Settings, moduleKey: "assistente_ia" },
-  { title: "Configurações", url: "/configuracoes", icon: UserCog, moduleKey: "configuracoes" },
-  { title: "Solicitar OS", url: "/solicitar-os", icon: Send, moduleKey: "solicitar_os" },
+  { title: "Dashboard", url: createPageUrl("Dashboard"), icon: Home, moduleKey: "dashboard", pageName: "Dashboard" },
+  { title: "Ordens de Serviço", url: createPageUrl("OrdemServico"), icon: FileText, moduleKey: "ordens_servico", pageName: "OrdemServico" },
+  { title: "Nova OS", url: createPageUrl("NovaOS"), icon: Wrench, moduleKey: "nova_os", pageName: "NovaOS" },
+  { title: "Planejamento", url: createPageUrl("PlanejamentoManutencao"), icon: Calendar, moduleKey: "planejamento_manutencao", pageName: "PlanejamentoManutencao" },
+  { title: "Cadastros", url: createPageUrl("Cadastros"), icon: Database, moduleKey: "cadastros", pageName: "Cadastros" },
+  { title: "Relatórios", url: createPageUrl("Relatorios"), icon: BarChart3, moduleKey: "relatorios", pageName: "Relatorios" },
+  { title: "Exportar Dados", url: createPageUrl("ExportarDados"), icon: Settings, moduleKey: "exportar_dados", pageName: "ExportarDados" },
+  { title: "Assistente IA", url: createPageUrl("AssistenteIA"), icon: Settings, moduleKey: "assistente_ia", pageName: "AssistenteIA" },
+  { title: "Configurações", url: "/configuracoes", icon: UserCog, moduleKey: "configuracoes", pageName: "configuracoes" },
+  { title: "Solicitar OS", url: "/solicitar-os", icon: Send, moduleKey: "solicitar_os", pageName: "SolicitarOS" },
 ];
 
 const NavLink = ({ item, isActive, isCollapsed }) => {
@@ -62,8 +63,12 @@ const NavLink = ({ item, isActive, isCollapsed }) => {
       <Link
         to={item.url}
         className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} rounded-lg px-3 py-2.5 text-slate-700 transition-all hover:bg-slate-100 hover:text-slate-900 ${isActive ? 'bg-blue-50 text-blue-600 font-semibold' : ''} ${isCollapsed ? 'mx-auto' : ''}`}
-        onMouseEnter={() => isCollapsed && setShowTooltip(true)}
+        onMouseEnter={() => {
+          preloadPage(item.pageName);
+          if (isCollapsed) setShowTooltip(true);
+        }}
         onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => preloadPage(item.pageName)}
       >
         {linkContent}
       </Link>
@@ -176,6 +181,7 @@ export default function Layout({ children, currentPageName }) {
       url: createPageUrl("Notificacoes"), 
       icon: Bell, 
       moduleKey: "notificacoes",
+      pageName: "Notificacoes",
       badge: (notificacoesNaoLidas > 0 && !notificacoesError) ? notificacoesNaoLidas : null 
     }
   ].filter((item) => item.public || canAccess(item.moduleKey));

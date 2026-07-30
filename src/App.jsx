@@ -1,4 +1,5 @@
 import './App.css'
+import { Suspense } from 'react'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -10,13 +11,13 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginScreen from '@/components/LoginScreen';
-import SolicitarOS from './pages/SolicitarOS';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
+const SolicitarOS = Pages.SolicitarOS;
 
 const routeAliases = {
   "assistente-ia": "AssistenteIA",
@@ -62,6 +63,21 @@ const LayoutWrapper = ({ children, currentPageName, resetKey }) => (
   </ErrorBoundary>
 );
 
+const ModuleLoadingFallback = () => (
+  <div className="flex min-h-[45vh] items-center justify-center" role="status" aria-live="polite">
+    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
+      Carregando módulo...
+    </div>
+  </div>
+);
+
+const LazyPage = ({ Page }) => (
+  <Suspense fallback={<ModuleLoadingFallback />}>
+    <Page />
+  </Suspense>
+);
+
 const AuthenticatedApp = () => {
   const location = useLocation();
   const { isLoadingAuth, isLoadingPublicSettings, isAuthenticated, authError, canAccess } = useAuth();
@@ -87,7 +103,7 @@ const AuthenticatedApp = () => {
     if (publicPath === "/solicitar-os") {
       return (
         <ErrorBoundary resetKey={location.pathname}>
-          <SolicitarOS />
+          <LazyPage Page={SolicitarOS} />
         </ErrorBoundary>
       );
     }
@@ -109,7 +125,7 @@ const AuthenticatedApp = () => {
     if (!canAccess("solicitar_os")) return <AccessDenied />;
     return (
       <ErrorBoundary resetKey={location.pathname}>
-        <SolicitarOS />
+        <LazyPage Page={SolicitarOS} />
       </ErrorBoundary>
     );
   }
@@ -119,7 +135,7 @@ const AuthenticatedApp = () => {
     if (moduleKey && !canAccess(moduleKey)) return <AccessDenied />;
     return (
       <LayoutWrapper currentPageName={path} resetKey={location.pathname}>
-        <Page />
+        <LazyPage Page={Page} />
       </LayoutWrapper>
     );
   };
@@ -131,14 +147,14 @@ const AuthenticatedApp = () => {
         canAccess(pageModuleMap[mainPageKey])
           ? (
             <LayoutWrapper currentPageName={mainPageKey} resetKey={location.pathname}>
-              <MainPage />
+              <LazyPage Page={MainPage} />
             </LayoutWrapper>
           )
           : canAccess("solicitar_os")
             ? <Navigate to="/solicitar-os" replace />
             : <AccessDenied />
       } />
-      <Route path="/solicitar-os" element={<SolicitarOS />} />
+      <Route path="/solicitar-os" element={<LazyPage Page={SolicitarOS} />} />
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}

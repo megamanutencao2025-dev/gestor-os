@@ -3,6 +3,25 @@ import { normalizeOrdemServico, normalizeOrdemServicoList } from "../utils/ordem
 const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 const TOKEN_KEY = "maintenancepro_access_token";
 const REFRESH_TOKEN_KEY = "maintenancepro_refresh_token";
+const REFERENCE_CACHE_TTL_MS = 60_000;
+const entityListCache = new Map();
+const entityListRequests = new Map();
+let entityCacheEpoch = 0;
+let refreshRequest = null;
+
+const referenceEntities = new Set([
+  "AreaManutencao",
+  "CentroCusto",
+  "Equipamento",
+  "FamiliaEquipamento",
+  "Localizacao",
+  "Mantenedor",
+  "Material",
+  "PrestadoraServico",
+  "Prioridade",
+  "StatusOS",
+  "TipoManutencao",
+]);
 
 if (!import.meta.env.VITE_API_URL) {
   console.warn("VITE_API_URL não definido. Usando http://127.0.0.1:8000 como fallback.");
@@ -28,7 +47,14 @@ function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+function clearEntityListCache() {
+  entityCacheEpoch += 1;
+  entityListCache.clear();
+  entityListRequests.clear();
+}
+
 function setToken(token) {
+  clearEntityListCache();
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
   } else {
@@ -48,7 +74,7 @@ function setRefreshToken(token) {
   }
 }
 
-async function refreshSession() {
+async function performSessionRefresh() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -67,6 +93,16 @@ async function refreshSession() {
   setToken(payload.accessToken);
   setRefreshToken(payload.refreshToken);
   return true;
+}
+
+function refreshSession() {
+  if (!refreshRequest) {
+    refreshRequest = performSessionRefresh()
+      .finally(() => {
+        refreshRequest = null;
+      });
+  }
+  return refreshRequest;
 }
 
 async function request(path, options = {}) {
@@ -148,27 +184,89 @@ function normalizeEntityPayload(entityName, payload) {
   return Array.isArray(payload) ? normalizeOrdemServicoList(payload) : normalizeOrdemServico(payload);
 }
 
+function clonePayload(payload) {
+  if (typeof structuredClone === "function") {
+    return structuredClone(payload);
+  }
+  return payload;
+}
+
+function getEntityListCacheKey(basePath, sort) {
+  return `${entityCacheEpoch}|${basePath}|${sort || ""}`;
+}
+
+function invalidateEntityListCache() {
+  clearEntityListCache();
+}
+
+async function listEntity(basePath, entityName, sort) {
+  const cacheKey = getEntityListCacheKey(basePath, sort);
+  const requestEpoch = entityCacheEpoch;
+  const cacheTtl = referenceEntities.has(entityName) ? REFERENCE_CACHE_TTL_MS : 0;
+  const cached = entityListCache.get(cacheKey);
+
+  if (cacheTtl > 0 && cached?.expiresAt > Date.now()) {
+    return clonePayload(cached.payload);
+  }
+
+  const existingRequest = entityListRequests.get(cacheKey);
+  if (existingRequest) {
+    return clonePayload(await existingRequest);
+  }
+
+  const pendingRequest = request(`${basePath}${normalizeSort(sort)}`)
+    .then((payload) => {
+      if (cacheTtl > 0 && requestEpoch === entityCacheEpoch) {
+        entityListCache.set(cacheKey, {
+          payload,
+          expiresAt: Date.now() + cacheTtl,
+        });
+      }
+      return payload;
+    })
+    .finally(() => entityListRequests.delete(cacheKey));
+
+  entityListRequests.set(cacheKey, pendingRequest);
+  return clonePayload(await pendingRequest);
+}
+
 function createEntityClient(route, entityName) {
   const basePath = `/api/${route}`;
 
   return {
-    list: async (sort) => normalizeEntityPayload(entityName, await request(`${basePath}${normalizeSort(sort)}`)),
+    list: async (sort) => normalizeEntityPayload(entityName, await listEntity(basePath, entityName, sort)),
     get: async (id) => normalizeEntityPayload(entityName, await request(`${basePath}/${encodeURIComponent(id)}`)),
-    create: async (data) => normalizeEntityPayload(entityName, await request(basePath, {
-      method: "POST",
-      body: JSON.stringify(data || {}),
-    })),
-    bulkCreate: async (records) => normalizeEntityPayload(entityName, await request(`${basePath}/bulk`, {
-      method: "POST",
-      body: JSON.stringify(Array.isArray(records) ? records : []),
-    })),
-    update: async (id, data) => normalizeEntityPayload(entityName, await request(`${basePath}/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      body: JSON.stringify(data || {}),
-    })),
-    delete: async (id) => normalizeEntityPayload(entityName, await request(`${basePath}/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    })),
+    create: async (data) => {
+      const payload = await request(basePath, {
+        method: "POST",
+        body: JSON.stringify(data || {}),
+      });
+      invalidateEntityListCache();
+      return normalizeEntityPayload(entityName, payload);
+    },
+    bulkCreate: async (records) => {
+      const payload = await request(`${basePath}/bulk`, {
+        method: "POST",
+        body: JSON.stringify(Array.isArray(records) ? records : []),
+      });
+      invalidateEntityListCache();
+      return normalizeEntityPayload(entityName, payload);
+    },
+    update: async (id, data) => {
+      const payload = await request(`${basePath}/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: JSON.stringify(data || {}),
+      });
+      invalidateEntityListCache();
+      return normalizeEntityPayload(entityName, payload);
+    },
+    delete: async (id) => {
+      const payload = await request(`${basePath}/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      invalidateEntityListCache();
+      return normalizeEntityPayload(entityName, payload);
+    },
   };
 }
 

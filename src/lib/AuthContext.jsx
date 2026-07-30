@@ -33,9 +33,12 @@ export function AuthProvider({ children }) {
 
     setIsLoadingAuth(true);
     try {
-      const currentUser = await appApi.auth.me();
+      const [currentUser, moduleList] = await Promise.all([
+        appApi.auth.me(),
+        appApi.admin.modules.mine(),
+      ]);
       setUser(currentUser);
-      await loadModules();
+      setModules(moduleList || []);
       setAuthError(null);
       return currentUser;
     } catch (error) {
