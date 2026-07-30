@@ -347,6 +347,8 @@ def export_materials():
             "unidade_medida": UNIT_TO_LEGACY.get(instance.unit, instance.unit),
             "custo": instance.unit_cost,
             "centro_custo": instance.cost_center.description if instance.cost_center else "",
+            "fornecedor": instance.supplier_name,
+            "fornecedor_cnpj": instance.supplier_tax_id,
             "data_compra": instance.purchased_on.isoformat() if instance.purchased_on else "",
         }
         for instance in Material.objects.select_related("cost_center")
@@ -742,6 +744,12 @@ def import_material(row, result):
             "unit": unit,
             "unit_cost": as_decimal(row.get("custo")),
             "cost_center": cost_center,
+            "supplier_name": as_text(row.get("fornecedor")),
+            "supplier_tax_id": re.sub(
+                r"\D",
+                "",
+                as_text(row.get("fornecedor_cnpj")),
+            )[:14],
             "purchased_on": as_date(row.get("data_compra")),
             "active": True,
         },

@@ -12,6 +12,8 @@ import { Plus, Edit, Save, Trash2, X, Search, Upload, Download, HelpCircle, Arro
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DialogClose, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { formatarData } from "@/components/utils/dateUtils"; // Imported the centralized date formatting utility, path corrected
+import MaterialNfeImportDialog from "@/components/cadastros/MaterialNfeImportDialog";
+import { MATERIAL_UNIT_OPTIONS } from "@/utils/materialNormalization";
 
 const SortableHeader = ({ children, column, sortConfig, onSort }) => {
   const isSorted = sortConfig.key === column;
@@ -152,13 +154,11 @@ function MaterialModal({ isOpen, onClose, material, onSave }) {
                   <SelectValue placeholder="Selecione a unidade" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Kg">Kg</SelectItem>
-                  <SelectItem value="Unidade">Unidade</SelectItem>
-                  <SelectItem value="Litro">Litro</SelectItem>
-                  <SelectItem value="Metro">Metro</SelectItem>
-                  <SelectItem value="Metro Quadrado">Metro Quadrado</SelectItem>
-                  <SelectItem value="Metro Cúbico">Metro Cúbico</SelectItem>
-                  <SelectItem value="Hora">Hora</SelectItem>
+                  {MATERIAL_UNIT_OPTIONS.map((unit) => (
+                    <SelectItem key={unit.value} value={unit.legacyValue}>
+                      {unit.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -188,7 +188,28 @@ function MaterialModal({ isOpen, onClose, material, onSave }) {
               />
             </div>
 
-            <div className="md:col-span-3">
+            <div>
+              <Label htmlFor="fornecedor">Fornecedor</Label>
+              <Input
+                id="fornecedor"
+                value={formData.fornecedor || ""}
+                onChange={(e) => setFormData(prev => ({ ...prev, fornecedor: e.target.value }))}
+                placeholder="Razão social do fornecedor"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="fornecedor_cnpj">CNPJ do Fornecedor</Label>
+              <Input
+                id="fornecedor_cnpj"
+                value={formData.fornecedor_cnpj || ""}
+                onChange={(e) => setFormData(prev => ({ ...prev, fornecedor_cnpj: e.target.value }))}
+                placeholder="Somente números"
+                maxLength={18}
+              />
+            </div>
+
+            <div>
               <Label htmlFor="data_compra">Data de Compra</Label>
               <Input
                 id="data_compra"
@@ -238,6 +259,7 @@ export default function MateriaisTab() {
   const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
   const [duplicates, setDuplicates] = useState([]);
   const [selectedDuplicates, setSelectedDuplicates] = useState(new Set());
+  const [showNfeImport, setShowNfeImport] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -267,13 +289,16 @@ export default function MateriaisTab() {
   const sortedAndFilteredMateriais = useMemo(() => {
      let filtered = materiais.filter(mat => {
       const searchLower = searchTerm.toLowerCase();
+      const cnpjSearch = searchTerm.replace(/\D/g, "");
       
       // Pesquisar por código, código de compra, nome, centro de custo
       const matchText = 
         mat.codigo?.toLowerCase().includes(searchLower) ||
         mat.nome?.toLowerCase().includes(searchLower) ||
         mat.codigo_compra?.toLowerCase().includes(searchLower) ||
-        mat.centro_custo?.toLowerCase().includes(searchLower);
+        mat.centro_custo?.toLowerCase().includes(searchLower) ||
+        mat.fornecedor?.toLowerCase().includes(searchLower) ||
+        (cnpjSearch && mat.fornecedor_cnpj?.includes(cnpjSearch));
       
       // Pesquisar por data
       let matchDate = false;
@@ -736,7 +761,7 @@ export default function MateriaisTab() {
   };
 
   const handleExport = () => {
-      const headers = ["codigo", "codigo_compra", "nome", "unidade_medida", "custo", "centro_custo", "data_compra", "created_date"];
+      const headers = ["codigo", "codigo_compra", "nome", "unidade_medida", "custo", "centro_custo", "fornecedor", "fornecedor_cnpj", "data_compra", "created_date"];
       const rows = sortedAndFilteredMateriais.map(mat => headers.map(h => {
         let value = mat[h] || '';
         // Format date for CSV export
@@ -767,11 +792,14 @@ export default function MateriaisTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+        <div className="flex flex-wrap gap-2">
             <input type="file" ref={fileInputRef} onChange={handleImport} accept=".csv" className="hidden" />
             <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current.click()}>
-                <Upload className="w-4 h-4" /> Importar
+                <Upload className="w-4 h-4" /> Importar CSV
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => setShowNfeImport(true)}>
+                <Upload className="w-4 h-4" /> Importar NF-e XML
             </Button>
             <Button variant="outline" className="gap-2" onClick={handleExport}>
                 <Download className="w-4 h-4" /> Exportar
@@ -868,6 +896,7 @@ export default function MateriaisTab() {
                   <SortableHeader column="unidade_medida" sortConfig={sortConfig} onSort={handleSort}>Unidade</SortableHeader>
                   <SortableHeader column="custo" sortConfig={sortConfig} onSort={handleSort}>Custo</SortableHeader>
                   <SortableHeader column="centro_custo" sortConfig={sortConfig} onSort={handleSort}>Centro Custo</SortableHeader>
+                  <SortableHeader column="fornecedor" sortConfig={sortConfig} onSort={handleSort}>Fornecedor</SortableHeader>
                   <SortableHeader column="data_compra" sortConfig={sortConfig} onSort={handleSort}>Data Compra</SortableHeader>
                   <SortableHeader column="created_date" sortConfig={sortConfig} onSort={handleSort}>Data Cadastro</SortableHeader>
                   <TableHead className="w-32">Ações</TableHead>
@@ -893,6 +922,12 @@ export default function MateriaisTab() {
                       })}
                     </TableCell>
                     <TableCell>{item.centro_custo || '-'}</TableCell>
+                    <TableCell>
+                      <div>{item.fornecedor || '-'}</div>
+                      {item.fornecedor_cnpj && (
+                        <div className="text-xs text-slate-500">{item.fornecedor_cnpj}</div>
+                      )}
+                    </TableCell>
                     {/* Updated to use formatarData function */}
                     <TableCell className="text-sm">
                       {formatarData(item.data_compra)}
@@ -923,7 +958,7 @@ export default function MateriaisTab() {
                 ))}
                 {sortedAndFilteredMateriais.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={11} className="text-center py-8 text-slate-500">
                       {searchTerm ? "Nenhum material encontrado" : "Nenhum material cadastrado"}
                     </TableCell>
                   </TableRow>
@@ -943,6 +978,19 @@ export default function MateriaisTab() {
         }}
         material={editingItem}
         onSave={handleSave}
+      />
+
+      <MaterialNfeImportDialog
+        open={showNfeImport}
+        onClose={() => setShowNfeImport(false)}
+        onImported={async (result) => {
+          await loadMateriais();
+          setImportStatus({
+            type: "success",
+            message: `${result.created} criado(s), ${result.updated} atualizado(s) e ${result.ignored} ignorado(s).`,
+            ignoredItems: [],
+          });
+        }}
       />
 
       {/* Modal de Duplicatas */}

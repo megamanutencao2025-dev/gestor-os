@@ -74,6 +74,8 @@ ENTITY_FIELDS = {
         "unidade_medida",
         "custo",
         "centro_custo",
+        "fornecedor",
+        "fornecedor_cnpj",
         "data_compra",
         "created_date",
         "updated_date",

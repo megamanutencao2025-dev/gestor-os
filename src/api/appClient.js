@@ -312,4 +312,18 @@ export const appApi = {
       );
     },
   },
+  materialNfeImport: {
+    preview: (files) => {
+      const body = new FormData();
+      files.forEach((file) => body.append("files", file));
+      return request("/api/v1/inventory/nfe/preview/", {
+        method: "POST",
+        body,
+      });
+    },
+    confirm: (payload) => request("/api/v1/inventory/nfe/confirm/", {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    }),
+  },
 };
