@@ -146,7 +146,8 @@ export default function OrdemServicoPage() {
   const [tipos, setTipos] = useState([]);
   const [areas, setAreas] = useState([]);
   const [statusList, setStatusList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(true);
+  const [referenceLoading, setReferenceLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [filters, setFilters] = useState({
     equipamento_id: searchParams.get("equipment") || "",
@@ -191,7 +192,7 @@ export default function OrdemServicoPage() {
   }, [activeTab, legacyOrders.length]);
 
   const loadOrderPage = async () => {
-    setLoading(true);
+    setListLoading(true);
     setPageError("");
     try {
       const backendOrdering = ORDERING_FIELDS[sortConfig.key] || "created_at";
@@ -228,16 +229,20 @@ export default function OrdemServicoPage() {
       });
       setSearchParams(nextParams, { replace: true });
     } catch (error) {
+      if (error?.status === 404 && page > 1) {
+        setPage(1);
+        return;
+      }
       setOrdensServico([]);
       setListMeta({ count: 0, next: null, previous: null });
       setPageError(error?.message || "Não foi possível carregar as ordens de serviço.");
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
   };
 
   const loadData = async () => {
-    setLoading(true);
+    setReferenceLoading(true);
     setPageError("");
     try {
       const pendingDataPromise = currentUser?.role === "admin"
@@ -256,7 +261,6 @@ export default function OrdemServicoPage() {
       setAreas(Array.isArray(areasData) ? areasData : []);
       setStatusList(Array.isArray(statusData) ? statusData : []);
       setPendingSolicitations(Array.isArray(pendingData) ? pendingData : []);
-      await loadOrderPage();
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       setEquipamentos([]);
@@ -266,7 +270,7 @@ export default function OrdemServicoPage() {
       setPendingSolicitations([]);
       setPageError(error?.message || "Não foi possível carregar as ordens de serviço.");
     } finally {
-      setLoading(false);
+      setReferenceLoading(false);
     }
   };
 
@@ -275,7 +279,7 @@ export default function OrdemServicoPage() {
     setPageError("");
     try {
       await appApi.admin.workOrders.decideSolicitation(solicitation.id, "approve");
-      await loadData();
+      await Promise.all([loadData(), loadOrderPage()]);
       setActiveTab("ordens");
     } catch (error) {
       setPageError(error?.message || "Não foi possível aprovar a solicitação.");
@@ -368,6 +372,13 @@ export default function OrdemServicoPage() {
   const sortedAndFilteredOS = useMemo(
     () => (Array.isArray(ordensServico) ? ordensServico : []),
     [ordensServico],
+  );
+  const loading = listLoading || referenceLoading;
+  const totalPages = Math.max(1, Math.ceil(listMeta.count / pageSize));
+  const firstVisiblePage = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const visiblePages = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => firstVisiblePage + index,
   );
 
     const servicosTerceirizados = useMemo(() => {
@@ -716,7 +727,7 @@ export default function OrdemServicoPage() {
       }
 
       setImportStatus({ type: 'success', message: `${dataToCreate.length} de ${extractionResult.output.length} registros importados com sucesso!` });
-      await loadData();
+      await Promise.all([loadData(), loadOrderPage()]);
 
     } catch (error) {
       setImportStatus({ type: 'error', message: `Erro na importação: ${error.message}` });
@@ -753,7 +764,11 @@ export default function OrdemServicoPage() {
     if (window.confirm("Tem certeza que deseja excluir esta Ordem de Serviço? A ação não pode ser desfeita.")) {
       try {
         await OrdemServico.delete(id);
-        await loadData();
+        if (sortedAndFilteredOS.length === 1 && page > 1) {
+          setPage((current) => current - 1);
+        } else {
+          await loadOrderPage();
+        }
       } catch (error) {
         console.error("Erro ao excluir OS:", error);
         alert("Não foi possível excluir a Ordem de Serviço.");
@@ -1163,9 +1178,9 @@ export default function OrdemServicoPage() {
             {/* Search input was moved to the controls div above */}
           </div>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 p-0 [&>div]:box-border [&>div]:h-full [&>div]:px-6 [&>div]:pb-6">
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           {loading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-6">
               {[1, 2, 3].map(i => (
                 <div key={i} className="animate-pulse flex items-center space-x-4">
                   <div className="h-4 bg-slate-200 rounded w-1/4"></div>
@@ -1177,7 +1192,7 @@ export default function OrdemServicoPage() {
             </div>
           ) : (
             <>
-            <Table>
+            <Table containerClassName="min-h-0 flex-1 px-3 sm:px-6">
               <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-card">
                 <TableRow>
                   <SortableHeader column="numero" sortConfig={sortConfig} onSort={handleSort}>Nº OS</SortableHeader>
@@ -1280,13 +1295,13 @@ export default function OrdemServicoPage() {
                 )}
               </TableBody>
             </Table>
-            <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-3 border-t px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <span className="text-xs text-muted-foreground">
                 {listMeta.count === 0
                   ? "Nenhuma ordem"
                   : `Exibindo ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, listMeta.count)} de ${listMeta.count} ordens`}
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Select
                   value={String(pageSize)}
                   onValueChange={(value) => {
@@ -1303,20 +1318,42 @@ export default function OrdemServicoPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <span className="whitespace-nowrap text-sm text-muted-foreground">
+                  Página {page} de {totalPages}
+                </span>
                 <Button
+                  type="button"
                   size="icon"
                   variant="outline"
                   title="Página anterior"
+                  aria-label="Página anterior"
                   disabled={!listMeta.previous}
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="min-w-10 text-center text-sm">{page}</span>
+                <div className="hidden items-center gap-1 sm:flex">
+                  {visiblePages.map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      type="button"
+                      size="icon"
+                      variant={pageNumber === page ? "default" : "outline"}
+                      className="h-8 w-8"
+                      aria-label={`Ir para a página ${pageNumber}`}
+                      aria-current={pageNumber === page ? "page" : undefined}
+                      onClick={() => setPage(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                </div>
                 <Button
+                  type="button"
                   size="icon"
                   variant="outline"
                   title="Próxima página"
+                  aria-label="Próxima página"
                   disabled={!listMeta.next}
                   onClick={() => setPage((current) => current + 1)}
                 >
