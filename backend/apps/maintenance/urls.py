@@ -1,7 +1,9 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
     MaintenanceAreaViewSet,
+    MaintenanceDashboardView,
     MaintenanceTypeViewSet,
     PriorityViewSet,
     WorkOrderStatusViewSet,
@@ -15,4 +17,11 @@ router.register("maintenance-types", MaintenanceTypeViewSet)
 router.register("work-order-statuses", WorkOrderStatusViewSet)
 router.register("priorities", PriorityViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path(
+        "dashboard/maintenance/",
+        MaintenanceDashboardView.as_view(),
+        name="maintenance-dashboard",
+    ),
+    *router.urls,
+]

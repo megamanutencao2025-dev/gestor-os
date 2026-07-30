@@ -298,6 +298,31 @@ def export_named(queryset):
     ]
 
 
+def export_maintenance_types():
+    return [
+        {
+            **base_row(instance),
+            "descricao": instance.description,
+            "categoria": instance.category,
+        }
+        for instance in MaintenanceType.objects.filter(active=True)
+    ]
+
+
+def export_work_order_statuses():
+    return [
+        {
+            **base_row(instance),
+            "descricao": instance.description,
+            "categoria": instance.category,
+            "inicial": instance.is_initial,
+            "final": instance.is_final,
+            "ordem": instance.order,
+        }
+        for instance in WorkOrderStatus.objects.filter(active=True)
+    ]
+
+
 def export_locations():
     return [
         {
@@ -389,8 +414,9 @@ def export_priorities():
             "descricao": instance.description,
             "cor": instance.color,
             "ordem": instance.order,
+            "severidade": instance.severity,
         }
-        for instance in Priority.objects.all()
+        for instance in Priority.objects.filter(active=True)
     ]
 
 
@@ -522,6 +548,7 @@ def export_work_orders():
             for item in instance.other_costs.all()
         ]
         scheduled_date, scheduled_time = split_legacy_datetime(instance.scheduled_at)
+        due_date, due_time = split_legacy_datetime(instance.due_at)
         completed_date, completed_time = split_legacy_datetime(instance.completed_at)
         first_equipment = equipment[0] if equipment else {}
         rows.append(
@@ -529,7 +556,10 @@ def export_work_orders():
                 **base_row(instance),
                 "numero": instance.number,
                 "equipamento_id": first_equipment.get("equipamento_id", ""),
-                "equipamento_nome": first_equipment.get("equipamento_nome", "") or instance.equipment_description,
+                "equipamento_nome": (
+                    first_equipment.get("equipamento_nome", "")
+                    or instance.equipment_description
+                ),
                 "equipamento_descricao_livre": instance.equipment_description,
                 "equipamento_nao_cadastrado": bool(instance.equipment_description),
                 "equipamentos": equipment,
@@ -547,8 +577,20 @@ def export_work_orders():
                 "solicitante": instance.requester,
                 "data_programada": scheduled_date,
                 "hora_programada": scheduled_time,
+                "data_prazo": due_date,
+                "hora_prazo": due_time,
                 "data_finalizada": completed_date,
                 "hora_finalizada": completed_time,
+                "responsavel_id": (
+                    external_id(instance.assigned_maintainer)
+                    if instance.assigned_maintainer
+                    else ""
+                ),
+                "responsavel_nome": (
+                    instance.assigned_maintainer.name
+                    if instance.assigned_maintainer
+                    else ""
+                ),
                 "maquina_parada": instance.machine_stopped,
                 "tempo_parada_manual": instance.manual_downtime_minutes,
                 "observacoes": instance.notes,
@@ -579,9 +621,9 @@ EXPORTERS = {
     "Equipamento": export_equipment,
     "Material": export_materials,
     "Mantenedor": export_maintainers,
-    "TipoManutencao": lambda: export_named(MaintenanceType.objects.all()),
-    "StatusOS": lambda: export_named(WorkOrderStatus.objects.all()),
-    "AreaManutencao": lambda: export_named(MaintenanceArea.objects.all()),
+    "TipoManutencao": export_maintenance_types,
+    "StatusOS": export_work_order_statuses,
+    "AreaManutencao": lambda: export_named(MaintenanceArea.objects.filter(active=True)),
     "FamiliaEquipamento": lambda: export_named(EquipmentFamily.objects.all()),
     "PrestadoraServico": export_providers,
     "Localizacao": export_locations,
@@ -760,6 +802,8 @@ def import_material(row, result):
 
 
 def import_priority(row, result):
+    severity = as_text(row.get("severidade"))
+    valid_severities = {choice[0] for choice in Priority.Severity.choices}
     import_named(
         Priority,
         row,
@@ -767,6 +811,7 @@ def import_priority(row, result):
         {
             "color": as_text(row.get("cor")) or "#64748B",
             "order": max(0, as_int(row.get("ordem"), 0)),
+            "severity": severity if severity in valid_severities else Priority.Severity.NORMAL,
         },
     )
 
@@ -1084,6 +1129,14 @@ def import_work_order(row, result):
         row.get("prioridade_id"),
         row.get("prioridade_nome"),
     )
+    assigned_maintainer = find_by_external_id(
+        Maintainer,
+        row.get("responsavel_id"),
+    )
+    if assigned_maintainer is None and as_text(row.get("responsavel_nome")):
+        assigned_maintainer = Maintainer.objects.filter(
+            name__iexact=as_text(row.get("responsavel_nome"))
+        ).first()
     work_order, created = upsert_object(
         WorkOrder,
         row,
@@ -1099,10 +1152,15 @@ def import_work_order(row, result):
                 row.get("data_programada"),
                 row.get("hora_programada"),
             ),
+            "due_at": combine_legacy_datetime(
+                row.get("data_prazo"),
+                row.get("hora_prazo"),
+            ),
             "completed_at": combine_legacy_datetime(
                 row.get("data_finalizada"),
                 row.get("hora_finalizada"),
             ),
+            "assigned_maintainer": assigned_maintainer,
             "machine_stopped": as_bool(row.get("maquina_parada"), True),
             "manual_downtime_minutes": (
                 as_int(row.get("tempo_parada_manual"))
@@ -1148,11 +1206,30 @@ ROW_IMPORTERS = {
         MaintenanceType,
         row,
         result,
+        {
+            "category": (
+                as_text(row.get("categoria"))
+                if as_text(row.get("categoria"))
+                in {choice[0] for choice in MaintenanceType.Category.choices}
+                else MaintenanceType.Category.OTHER
+            )
+        },
     ),
     "StatusOS": lambda row, result: import_named(
         WorkOrderStatus,
         row,
         result,
+        {
+            "category": (
+                as_text(row.get("categoria"))
+                if as_text(row.get("categoria"))
+                in {choice[0] for choice in WorkOrderStatus.Category.choices}
+                else WorkOrderStatus.Category.OTHER
+            ),
+            "is_initial": as_bool(row.get("inicial")),
+            "is_final": as_bool(row.get("final")),
+            "order": max(0, as_int(row.get("ordem"), 0)),
+        },
     ),
     "AreaManutencao": lambda row, result: import_named(
         MaintenanceArea,

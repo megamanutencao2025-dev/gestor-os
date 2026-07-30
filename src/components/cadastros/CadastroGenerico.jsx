@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Edit, Save, Trash2, X, ArrowUpDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SortableHeader = ({ children, column, sortConfig, onSort }) => {
   const isSorted = sortConfig.key === column;
@@ -38,7 +39,11 @@ function CadastroModal({ isOpen, onClose, item, titulo, campos, onSave }) {
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(item || {});
+      setFormData(item || Object.fromEntries(
+        campos
+          .filter((campo) => campo.defaultValue !== undefined)
+          .map((campo) => [campo.name, campo.defaultValue]),
+      ));
       setError("");
     }
   }, [isOpen, item]);
@@ -88,16 +93,37 @@ function CadastroModal({ isOpen, onClose, item, titulo, campos, onSave }) {
                 {campo.label}
                 {campo.required && <span className="text-red-500 ml-1">*</span>}
               </Label>
-              <Input
-                id={campo.name}
-                value={formData[campo.name] || ""}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  [campo.name]: e.target.value
-                }))}
-                placeholder={campo.placeholder || `Digite ${campo.label.toLowerCase()}`}
-                maxLength={campo.maxLength || 255}
-              />
+              {campo.type === "select" ? (
+                <Select
+                  value={formData[campo.name] || campo.defaultValue || ""}
+                  onValueChange={(value) => setFormData((previous) => ({
+                    ...previous,
+                    [campo.name]: value,
+                  }))}
+                >
+                  <SelectTrigger id={campo.name}>
+                    <SelectValue placeholder={campo.placeholder || "Selecione"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(campo.options || []).map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id={campo.name}
+                  value={formData[campo.name] || ""}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    [campo.name]: e.target.value
+                  }))}
+                  placeholder={campo.placeholder || `Digite ${campo.label.toLowerCase()}`}
+                  maxLength={campo.maxLength || 255}
+                />
+              )}
             </div>
           ))}
           
@@ -275,7 +301,9 @@ export default function CadastroGenerico({
                     <TableRow key={item.id}>
                       {campos.map(campo => (
                         <TableCell key={campo.name} className="text-xs sm:text-sm">
-                          {item[campo.name]}
+                          {campo.type === "select"
+                            ? campo.options?.find((option) => option.value === item[campo.name])?.label || item[campo.name]
+                            : item[campo.name]}
                         </TableCell>
                       ))}
                       <TableCell>

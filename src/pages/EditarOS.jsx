@@ -99,6 +99,10 @@ export default function EditarOS() {
     solicitante: '',
     data_programada: '',
     hora_programada: '',
+    data_prazo: '',
+    hora_prazo: '',
+    responsavel_id: '',
+    responsavel_nome: '',
     data_finalizada: '',
     hora_finalizada: '',
     maquina_parada: null,
@@ -423,9 +427,13 @@ export default function EditarOS() {
       const normalizedOSData = {
         ...osData,
         data_programada: osData.data_programada ? osData.data_programada.substring(0, 10) : '',
+        data_prazo: osData.data_prazo ? osData.data_prazo.substring(0, 10) : '',
         data_finalizada: osData.data_finalizada ? osData.data_finalizada.substring(0, 10) : '',
         hora_programada: osData.hora_programada || '',
+        hora_prazo: osData.hora_prazo || '',
         hora_finalizada: osData.hora_finalizada || '',
+        responsavel_id: String(osData.responsavel_id || ''),
+        responsavel_nome: osData.responsavel_nome || '',
         maquina_parada:
           osData.maquina_parada === true || osData.maquina_parada === 1
             ? true
@@ -925,6 +933,15 @@ export default function EditarOS() {
       setError("Informe se a máquina realmente parou com o defeito.");
       return;
     }
+    if (
+      formData.data_programada
+      && formData.data_prazo
+      && new Date(`${formData.data_prazo}T${formData.hora_prazo || "23:59"}`)
+        < new Date(`${formData.data_programada}T${formData.hora_programada || "00:00"}`)
+    ) {
+      setError("O prazo da OS não pode ser anterior ao agendamento.");
+      return;
+    }
 
     setSaving(true);
 
@@ -1043,6 +1060,10 @@ export default function EditarOS() {
         solicitante: formData.solicitante || '',
         data_programada: formData.data_programada || '',
         hora_programada: formData.hora_programada || '',
+        data_prazo: formData.data_prazo || '',
+        hora_prazo: formData.hora_prazo || '',
+        responsavel_id: String(formData.responsavel_id || ''),
+        responsavel_nome: formData.responsavel_nome || '',
         data_finalizada: formData.data_finalizada || '',
         hora_finalizada: formData.hora_finalizada || '',
         maquina_parada: formData.maquina_parada === true,
@@ -1779,6 +1800,50 @@ export default function EditarOS() {
                         value={formData.hora_programada}
                         onChange={(e) => setFormData(prev => ({ ...prev, hora_programada: e.target.value }))}
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="data_prazo">Data limite</Label>
+                      <Input
+                        id="data_prazo"
+                        type="date"
+                        value={formData.data_prazo}
+                        onChange={(e) => setFormData(prev => ({ ...prev, data_prazo: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="hora_prazo">Hora limite</Label>
+                      <Input
+                        id="hora_prazo"
+                        type="time"
+                        value={formData.hora_prazo}
+                        onChange={(e) => setFormData(prev => ({ ...prev, hora_prazo: e.target.value }))}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="responsavel_os">Responsável pela OS</Label>
+                      <Select
+                        value={formData.responsavel_id || "none"}
+                        onValueChange={(value) => {
+                          const selected = mantenedores.find((item) => String(item.id) === value);
+                          setFormData(prev => ({
+                            ...prev,
+                            responsavel_id: value === "none" ? "" : value,
+                            responsavel_nome: selected?.nome || "",
+                          }));
+                        }}
+                      >
+                        <SelectTrigger id="responsavel_os">
+                          <SelectValue placeholder="Não atribuído" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não atribuído</SelectItem>
+                          {mantenedores.map((item) => (
+                            <SelectItem key={item.id} value={String(item.id)}>
+                              {item.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </CardContent>

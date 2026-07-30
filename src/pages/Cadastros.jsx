@@ -57,6 +57,26 @@ export default function Cadastros() {
           <CadastroGenerico
             titulo="Tipos de Manutenção"
             Entity={TipoManutencao}
+            campos={[
+              { name: "descricao", label: "Descrição", required: true },
+              {
+                name: "categoria",
+                label: "Categoria operacional",
+                type: "select",
+                required: true,
+                defaultValue: "other",
+                options: [
+                  { value: "corrective", label: "Corretiva" },
+                  { value: "preventive", label: "Preventiva" },
+                  { value: "predictive", label: "Preditiva" },
+                  { value: "emergency", label: "Emergencial" },
+                  { value: "improvement", label: "Melhoria" },
+                  { value: "relocation", label: "Realocação" },
+                  { value: "outsourced", label: "Terceirizada" },
+                  { value: "other", label: "Outra" },
+                ],
+              },
+            ]}
           />
         </TabsContent>
 
@@ -64,6 +84,36 @@ export default function Cadastros() {
           <CadastroGenerico
             titulo="Status OS"
             Entity={StatusOS}
+            campos={[
+              { name: "descricao", label: "Descrição", required: true },
+              {
+                name: "categoria",
+                label: "Etapa do fluxo",
+                type: "select",
+                required: true,
+                defaultValue: "other",
+                options: [
+                  { value: "open", label: "Aberta" },
+                  { value: "in_progress", label: "Em andamento" },
+                  { value: "waiting_parts", label: "Aguardando peças" },
+                  { value: "waiting_document", label: "Aguardando documento" },
+                  { value: "completed", label: "Concluída" },
+                  { value: "cancelled", label: "Cancelada" },
+                  { value: "rejected", label: "Reprovada" },
+                  { value: "other", label: "Outra" },
+                ],
+              },
+              { name: "ordem", label: "Ordem", required: false, placeholder: "10" },
+            ]}
+            onSaveCustom={async (formData, editingItem, Entity) => {
+              const payload = {
+                ...formData,
+                inicial: formData.categoria === "open",
+                final: ["completed", "cancelled", "rejected"].includes(formData.categoria),
+              };
+              if (editingItem) await Entity.update(editingItem.id, payload);
+              else await Entity.create(payload);
+            }}
           />
         </TabsContent>
 
@@ -81,7 +131,21 @@ export default function Cadastros() {
             campos={[
               { name: 'descricao', label: 'Descrição', required: true },
               { name: 'cor', label: 'Cor', required: false, placeholder: '#FF0000' },
-              { name: 'ordem', label: 'Ordem', required: false, placeholder: '1' }
+              { name: 'ordem', label: 'Ordem', required: false, placeholder: '1' },
+              {
+                name: "severidade",
+                label: "Severidade operacional",
+                type: "select",
+                required: true,
+                defaultValue: "normal",
+                options: [
+                  { value: "low", label: "Baixa" },
+                  { value: "normal", label: "Normal" },
+                  { value: "high", label: "Alta" },
+                  { value: "critical", label: "Crítica" },
+                  { value: "emergency", label: "Emergência" },
+                ],
+              },
             ]}
           />
         </TabsContent>

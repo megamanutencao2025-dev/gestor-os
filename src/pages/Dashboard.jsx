@@ -1,608 +1,862 @@
-﻿import React, { useState, useEffect } from "react";
-import { appApi } from "@/api/appClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import ModuleLabel from "@/components/ModuleLabel";
-import { Loader2, PieChart as PieChartIcon, TrendingUp, AlertCircle, Signal, DollarSign, Building2, Clock, MapPin, Settings } from "lucide-react";
-import _ from "lodash";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart, 
-  Line,
-  XAxis,
+  AlertCircle,
+  AlertTriangle,
+  Boxes,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  Filter,
+  Gauge,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  UserRoundX,
+  Wrench,
+  X,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
   Tooltip,
-  Legend
+  XAxis,
+  YAxis,
 } from "recharts";
 
-// Paleta de cores moderna
-const MODERN_COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#84cc16", "#f97316"];
+import { appApi } from "@/api/appClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-// Cores específicas para cada gráfico
+const FILTER_KEYS = [
+  "date_from",
+  "date_to",
+  "location",
+  "equipment",
+  "maintenance_type",
+  "priority",
+  "responsible",
+];
+
+const ATTENTION_TABS = [
+  ["all", "Todas"],
+  ["overdue", "Vencidas"],
+  ["due_today", "Vencem hoje"],
+  ["unassigned", "Sem responsável"],
+  ["waiting_parts", "Aguardando peça"],
+  ["emergency", "Emergenciais"],
+];
+
+const SITUATION_LABELS = {
+  overdue: "Vencida",
+  due_today: "Vence hoje",
+  unassigned: "Sem responsável",
+  waiting_parts: "Aguardando peça",
+  emergency: "Emergencial",
+  open: "Aberta",
+};
+
+const SITUATION_STYLES = {
+  overdue: "border-red-500/40 bg-red-500/10 text-red-300",
+  due_today: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+  unassigned: "border-slate-500/40 bg-slate-500/10 text-slate-300",
+  waiting_parts: "border-orange-500/40 bg-orange-500/10 text-orange-300",
+  emergency: "border-red-500/40 bg-red-500/10 text-red-300",
+  open: "border-blue-500/40 bg-blue-500/10 text-blue-300",
+};
+
 const CHART_COLORS = {
-  custoMensal: "#26F09C",
-  status: MODERN_COLORS,
-  localizacao: "#ec4899",
-  equipamentosOS: "#10b981",
-  equipamentosCusto: "#f59e0b",
+  opened: "#5B8FF9",
+  completed: "#2DD4A7",
+  bars: "#5B8FF9",
 };
 
-// Função auxiliar para validar e formatar datas com segurança
-const safeFormatDate = (dateString, formatStr = "MMM/yy") => {
-  if (!dateString) return null;
-  
-  try {
-    let date;
-    
-    // Tentar parsear a data de diferentes formas
-    if (typeof dateString === 'string') {
-      // Se está no formato YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        date = new Date(`${dateString}T12:00:00Z`);
-      } 
-      // Se está no formato YYYY-MM
-      else if (/^\d{4}-\d{2}$/.test(dateString)) {
-        date = new Date(`${dateString}-01T12:00:00Z`);
-      }
-      // Outros formatos
-      else {
-        date = new Date(dateString);
-      }
-    } else if (dateString instanceof Date) {
-      date = dateString;
-    } else {
-      return null;
-    }
-    
-    // Verificar se a data é válida
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-    
-    return format(date, formatStr, { locale: ptBR });
-  } catch (error) {
-    console.warn("Erro ao formatar data:", dateString, error);
-    return null;
+function localIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function periodRange(kind) {
+  const today = new Date();
+  const start = new Date(today);
+  if (kind === "today") {
+    return [localIsoDate(today), localIsoDate(today)];
   }
-};
-
-// Função auxiliar para extrair ano-mês de uma data
-const extractYearMonth = (dateString) => {
-  if (!dateString) return null;
-  
-  try {
-    let date;
-    
-    if (typeof dateString === 'string') {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        date = new Date(`${dateString}T12:00:00Z`);
-      } else {
-        date = new Date(dateString);
-      }
-    } else if (dateString instanceof Date) {
-      date = dateString;
-    } else {
-      return null;
-    }
-    
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-    
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  } catch (error) {
-    console.warn("Erro ao extrair ano-mês:", dateString, error);
-    return null;
+  if (kind === "7d" || kind === "30d") {
+    start.setDate(today.getDate() - (kind === "7d" ? 6 : 29));
+  } else if (kind === "month") {
+    start.setDate(1);
+  } else if (kind === "year") {
+    start.setMonth(0, 1);
   }
-};
+  return [localIsoDate(start), localIsoDate(today)];
+}
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-        <p className="font-bold text-slate-800">{label}</p>
-        {payload.map((pld, index) => (
-          <p key={index} style={{ color: pld.color }}>
-            {`${pld.name}: ${pld.value.toLocaleString('pt-BR', pld.name.toLowerCase().includes('valor') || pld.name.toLowerCase().includes('custo') ? { style: 'currency', currency: 'BRL' } : {})}`}
-          </p>
+function initialFilters(searchParams) {
+  const [defaultStart, defaultEnd] = periodRange("30d");
+  return {
+    date_from: searchParams.get("date_from") || defaultStart,
+    date_to: searchParams.get("date_to") || defaultEnd,
+    location: searchParams.get("location") || "",
+    equipment: searchParams.get("equipment") || "",
+    maintenance_type: searchParams.get("maintenance_type") || "",
+    priority: searchParams.get("priority") || "",
+    responsible: searchParams.get("responsible") || "",
+  };
+}
+
+function getReferenceLabel(item) {
+  return item?.descricao || item?.description || item?.nome || item?.name || "";
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "Sem prazo";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatPeriodLabel(value, bucket) {
+  if (!value) return "";
+  const date = new Date(`${value}T12:00:00`);
+  if (bucket === "month") {
+    return new Intl.DateTimeFormat("pt-BR", {
+      month: "short",
+      year: "2-digit",
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
+function formatOpenTime(hours) {
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? "dia" : "dias"}`;
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-label="Carregando dashboard">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="h-32 rounded-md border bg-card" />
         ))}
       </div>
-    );
-  }
-  return null;
-};
-
-const StatusCard = ({ stats, total }) => (
-  <Card className="shadow-sm border-0 bg-white flex flex-col">
-    <CardHeader>
-      <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Signal className="w-5 h-5" />
-                Status das OS
-            </CardTitle>
-          </div>
-          <div className="text-right">
-              <p className="text-sm text-slate-500">Total de Ordens</p>
-              <p className="text-2xl font-bold text-slate-900">{total}</p>
-          </div>
+      <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+        <div className="h-80 rounded-md border bg-card" />
+        <div className="h-80 rounded-md border bg-card" />
       </div>
-    </CardHeader>
-    <CardContent className="flex-grow flex flex-col justify-center">
-      {stats.map((s, index) => (
-        <div key={s.id} className="mb-4 last:mb-0">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-slate-700">{s.descricao}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-slate-800">{s.count}</span>
-              <span className="text-xs text-slate-500">({s.percentage.toFixed(1)}%)</span>
-            </div>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-3">
-            <div
-              className="h-3 rounded-full transition-all duration-500"
-              style={{ width: `${s.percentage}%`, backgroundColor: MODERN_COLORS[index % MODERN_COLORS.length] }}
-            ></div>
-          </div>
-        </div>
-      ))}
-    </CardContent>
-  </Card>
-);
-
-const ProgressListCard = ({ title, data, total, totalValue, icon: Icon, valueKey, labelKey, formatValue, barColor }) => {
-  const calculatedTotal = totalValue !== undefined ? totalValue : data.reduce((sum, item) => sum + (item[valueKey] || 0), 0);
-
-  return (
-    <Card className="shadow-sm border-0 bg-white flex flex-col">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              {Icon && <Icon className="w-5 h-5" />}
-              {title}
-            </CardTitle>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-slate-500">Total</p>
-            <p className="text-2xl font-bold text-slate-900">{formatValue && typeof total === 'number' ? formatValue(total) : total}</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col justify-center">
-        {data.length === 0 ? (
-          <div className="flex items-center justify-center text-slate-500 py-8">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            Não há dados suficientes
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data.map((item, index) => {
-              const percentage = calculatedTotal > 0 ? (item[valueKey] / calculatedTotal) * 100 : 0;
-              return (
-                <div key={index} className="mb-4 last:mb-0">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-medium text-slate-700 pr-2 leading-tight break-words flex-1">
-                      {item[labelKey] || "Sem nome"}
-                    </span>
-                    <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0">
-                      <span className="text-sm font-bold text-slate-800">
-                        {formatValue ? formatValue(item[valueKey]) : item[valueKey]}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        ({percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-3">
-                    <div
-                      className="h-3 rounded-full transition-all duration-500"
-                      style={{ 
-                        width: `${percentage}%`, 
-                        backgroundColor: barColor || MODERN_COLORS[0]
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    </div>
   );
-};
+}
 
-const GenericChartCard = ({ title, data, children, icon: Icon, className = "", height = 300 }) => (
-  <Card className={`shadow-sm border-0 bg-white ${className}`}>
-    <CardHeader>
-      <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-        {Icon && <Icon className="w-5 h-5" />}
-        {title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      {data && data.length > 0 ? (
-        <div style={{ width: '100%', height }}>
-          <ResponsiveContainer width="100%" height="100%">
-            {children}
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className={`h-[${height}px] flex items-center justify-center text-slate-500`}>
-          <AlertCircle className="w-5 h-5 mr-2" />
-          Não há dados suficientes para exibir o gráfico.
-        </div>
-      )}
-    </CardContent>
-  </Card>
-);
+function IndicatorCard({ label, value, detail, icon: Icon, tone, onClick, title }) {
+  const tones = {
+    blue: "border-l-blue-500 text-blue-400",
+    red: "border-l-red-500 text-red-400",
+    orange: "border-l-orange-500 text-orange-400",
+    green: "border-l-emerald-500 text-emerald-400",
+    slate: "border-l-slate-500 text-slate-300",
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`min-h-32 rounded-md border border-l-4 bg-card p-4 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tones[tone]}`}
+    >
+      <span className="flex items-start justify-between gap-2">
+        <span className="text-xs font-semibold uppercase text-muted-foreground">
+          {label}
+        </span>
+        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+      </span>
+      <strong className="mt-4 block text-2xl text-foreground">{value}</strong>
+      <span className="mt-1 block text-xs text-muted-foreground">{detail}</span>
+    </button>
+  );
+}
 
-const CostCard = ({ title, value, icon: Icon, color, bgColor }) => (
-  <Card className="shadow-sm border-0 bg-white">
-    <CardContent className="p-6">
-      <div className="flex items-center">
-        <div className={`rounded-full p-3 ${bgColor} mr-4`}>
-          <Icon className={`w-6 h-6 ${color}`} />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-slate-600">{title}</p>
-          <p className="text-2xl font-bold text-slate-900">
-            {value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+function EmptyState({ children }) {
+  return (
+    <div className="flex min-h-44 items-center justify-center rounded-md border border-dashed p-5 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-md border bg-popover p-3 text-xs text-popover-foreground shadow-lg">
+      <p className="mb-2 font-semibold">{label}</p>
+      {payload.map((item) => (
+        <p key={item.dataKey} style={{ color: item.color }}>
+          {item.name}: {item.value}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
-  const [data, setData] = useState({
-    statusStats: [],
-    totalOS: 0,
-    tiposData: [],
-    localData: [],
-    custoMensalData: [],
-    topEquipamentosOS: [],
-    topEquipamentosCusto: [],
-    totalCost: 0,
-    totalMateriais: 0,
-    totalHoraHomem: 0,
-    totalTerceirizados: 0,
-    countTerceirizados: 0,
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState(() => initialFilters(searchParams));
+  const [data, setData] = useState(null);
+  const [references, setReferences] = useState({
+    locations: [],
+    equipment: [],
+    types: [],
+    priorities: [],
+    maintainers: [],
   });
+  const [attentionFilter, setAttentionFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  const updateUrl = useCallback((nextFilters) => {
+    const next = new URLSearchParams(searchParams);
+    FILTER_KEYS.forEach((key) => {
+      if (nextFilters[key]) next.set(key, nextFilters[key]);
+      else next.delete(key);
+    });
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
-  const loadDashboardData = async () => {
+  const loadDashboard = useCallback(async (nextFilters, isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError("");
     try {
-      const [ordensServico, statusList, equipamentos] = await Promise.all([
-        appApi.entities.OrdemServico.list(),
-        appApi.entities.StatusOS.list(),
-        appApi.entities.Equipamento.list(),
-      ]);
-
-      const totalOS = ordensServico.length;
-      
-      const osByStatus = _.groupBy(ordensServico, "status_id");
-      const statusStats = statusList.map(s => ({
-        ...s,
-        count: osByStatus[s.id]?.length || 0,
-        percentage: totalOS > 0 ? ((osByStatus[s.id]?.length || 0) / totalOS) * 100 : 0
-      }));
-
-      const tiposData = _.map(_.groupBy(ordensServico, "tipo_nome"), (value, key) => ({
-        name: key || "Sem Tipo",
-        value: value.length,
-      })).filter(item => item.value > 0);
-
-      const localData = _.chain(ordensServico)
-        .groupBy(os => {
-          if (os.equipamentos && os.equipamentos.length > 0) {
-            return os.equipamentos[0].localizacao_celula || "Sem Localização";
-          }
-          return os.localizacao_celula || os.local || "Sem Localização";
-        })
-        .map((value, key) => ({ name: key, OS: value.length }))
-        .filter(item => item.OS > 0 && item.name !== "Sem Localização")
-        .orderBy(['OS'], ['desc'])
-        .take(10)
-        .value();
-
-      const allCostsGranular = ordensServico.map(os => {
-          const materiais = parseFloat(os.valor_total_materiais) || 0;
-          const servicos = parseFloat(os.valor_total_servicos) || 0;
-          const terceirizados = parseFloat(os.valor_total_terceirizados) || 0;
-          return {
-              equipamento_nome: os.equipamento_nome,
-              data: os.data_programada || os.created_date,
-              custo: materiais + servicos + terceirizados
-          };
-      });
-      
-      // Custo mensal ordenado cronologicamente - COM VALIDAÇÃO DE DATAS
-      const custoMensalData = _.chain(allCostsGranular)
-        .filter(item => item.data)
-        .map(item => {
-          const yearMonth = extractYearMonth(item.data);
-          if (!yearMonth) return null;
-          return {
-            ...item,
-            yearMonth
-          };
-        })
-        .filter(item => item && item.yearMonth)
-        .groupBy('yearMonth')
-        .map((value, key) => {
-          const monthLabel = safeFormatDate(key, "MMM/yy");
-          if (!monthLabel) return null;
-          
-          return {
-            month: monthLabel,
-            "Valor Gasto": _.sumBy(value, 'custo'),
-            sortKey: key
-          };
-        })
-        .filter(item => item && item["Valor Gasto"] > 0)
-        .orderBy(['sortKey'], ['asc'])
-        .value();
-
-      // Criar mapa de equipamentos para buscar hierarquia
-      const equipamentosMap = {};
-      equipamentos.forEach(eq => {
-        equipamentosMap[eq.id] = eq;
-      });
-
-      // Função para obter nome completo com hierarquia
-      const getNomeComHierarquia = (equipamentoNome, equipamentoId) => {
-        if (!equipamentoId) return equipamentoNome || "Sem Nome";
-        
-        const equipamento = equipamentosMap[equipamentoId];
-        if (!equipamento) return equipamentoNome || "Sem Nome";
-        
-        // Se tem parent_id, é subequipamento - buscar equipamento pai
-        if (equipamento.parent_id) {
-          const equipamentoPai = equipamentosMap[equipamento.parent_id];
-          if (equipamentoPai) {
-            return `${equipamentoNome} (${equipamentoPai.descricao})`;
-          }
-        }
-        
-        return equipamentoNome || "Sem Nome";
-      };
-
-      // Contar OS por equipamento considerando múltiplos equipamentos por OS
-      const equipamentoOSCount = {};
-      
-      ordensServico.forEach(os => {
-        // Se a OS tem array de equipamentos (novo formato), contar para todos
-        if (os.equipamentos && Array.isArray(os.equipamentos) && os.equipamentos.length > 0) {
-          os.equipamentos.forEach(eq => {
-            const nomeComHierarquia = getNomeComHierarquia(eq.equipamento_nome, eq.equipamento_id);
-            equipamentoOSCount[nomeComHierarquia] = (equipamentoOSCount[nomeComHierarquia] || 0) + 1;
-          });
-        } 
-        // Caso contrário, usar equipamento principal (compatibilidade)
-        else if (os.equipamento_nome) {
-          const nomeComHierarquia = getNomeComHierarquia(os.equipamento_nome, os.equipamento_id);
-          equipamentoOSCount[nomeComHierarquia] = (equipamentoOSCount[nomeComHierarquia] || 0) + 1;
-        }
-      });
-      
-      const topEquipamentosOS = _.chain(equipamentoOSCount)
-        .map((count, name) => ({ 
-          name: name, 
-          "Nº de OS": count 
-        }))
-        .filter(item => item["Nº de OS"] > 0)
-        .orderBy(["Nº de OS"], ["desc"])
-        .take(10)
-        .value();
-
-      const topEquipamentosCusto = _.chain(allCostsGranular)
-        .groupBy('equipamento_nome')
-        .map((value, key) => ({
-          name: key || "Sem Nome",
-          "Valor Gasto": _.sumBy(value, 'custo'),
-        }))
-        .filter(item => item["Valor Gasto"] > 0)
-        .orderBy(["Valor Gasto"], ["desc"])
-        .take(10)
-        .value();
-        
-      const totalMateriais = ordensServico.reduce((sum, os) => sum + (parseFloat(os.valor_total_materiais) || 0), 0);
-      const totalHoraHomem = ordensServico.reduce((sum, os) => sum + (parseFloat(os.valor_total_servicos) || 0), 0);
-      const totalTerceirizados = ordensServico.reduce((sum, os) => sum + (parseFloat(os.valor_total_terceirizados) || 0), 0);
-      
-      const countTerceirizados = ordensServico.reduce((count, os) => {
-        if (os.terceirizados && Array.isArray(os.terceirizados)) {
-          return count + os.terceirizados.length;
-        }
-        return count;
-      }, 0);
-
-      const totalCost = totalMateriais + totalHoraHomem + totalTerceirizados;
-        
-      setData({
-        statusStats,
-        totalOS,
-        tiposData,
-        localData,
-        custoMensalData,
-        topEquipamentosOS,
-        topEquipamentosCusto,
-        totalCost,
-        totalMateriais,
-        totalHoraHomem,
-        totalTerceirizados,
-        countTerceirizados,
-      });
-
-    } catch (error) {
-      console.error("Erro ao carregar dados do dashboard:", error);
+      const result = await appApi.dashboard.maintenance(nextFilters);
+      setData(result);
+    } catch (requestError) {
+      setError(
+        requestError?.message
+          || "Não foi possível carregar os indicadores de manutenção."
+      );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      appApi.entities.Localizacao.list(),
+      appApi.entities.Equipamento.list(),
+      appApi.entities.TipoManutencao.list(),
+      appApi.entities.Prioridade.list(),
+      appApi.entities.Mantenedor.list(),
+    ]).then(([locations, equipment, types, priorities, maintainers]) => {
+      setReferences({
+        locations: Array.isArray(locations) ? locations : [],
+        equipment: Array.isArray(equipment) ? equipment : [],
+        types: Array.isArray(types) ? types : [],
+        priorities: Array.isArray(priorities) ? priorities : [],
+        maintainers: Array.isArray(maintainers) ? maintainers : [],
+      });
+    }).catch(() => {
+      setReferences((current) => current);
+    });
+  }, []);
+
+  useEffect(() => {
+    const next = initialFilters(searchParams);
+    setFilters(next);
+    loadDashboard(next);
+  }, [searchParams, loadDashboard]);
+
+  const applyFilters = () => {
+    updateUrl(filters);
+    setShowMobileFilters(false);
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  const formatCurrency = (value) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const setPeriod = (kind) => {
+    const [dateFrom, dateTo] = periodRange(kind);
+    const next = { ...filters, date_from: dateFrom, date_to: dateTo };
+    setFilters(next);
+    updateUrl(next);
   };
 
-  const CustomLabel = ({ x, y, value }) => {
-    return (
-      <text
-        x={x}
-        y={y - 10}
-        fill="#64748b"
-        textAnchor="middle"
-        fontSize={11}
-        fontWeight="bold"
-      >
-        {formatCurrency(value)}
-      </text>
-    );
+  const clearFilters = () => {
+    const [dateFrom, dateTo] = periodRange("30d");
+    const next = {
+      date_from: dateFrom,
+      date_to: dateTo,
+      location: "",
+      equipment: "",
+      maintenance_type: "",
+      priority: "",
+      responsible: "",
+    };
+    setFilters(next);
+    updateUrl(next);
   };
-  
+
+  const openOrderList = (extra = {}) => {
+    const params = new URLSearchParams();
+    Object.entries({ ...filters, ...extra }).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    navigate(`/ordens-servico?${params.toString()}`);
+  };
+
+  const completedStatus = data?.statuses?.find(
+    (status) => status.category === "completed"
+  );
+  const chartData = useMemo(
+    () => (data?.series?.items || []).map((item) => ({
+      ...item,
+      label: formatPeriodLabel(item.period, data?.series?.bucket),
+    })),
+    [data]
+  );
+  const visibleAttention = useMemo(() => {
+    const items = data?.attention || [];
+    return attentionFilter === "all"
+      ? items
+      : items.filter((item) => item.situation === attentionFilter);
+  }, [attentionFilter, data]);
+
+  const activeFilterCount = FILTER_KEYS.slice(2).filter(
+    (key) => filters[key]
+  ).length;
+  const indicators = data?.indicators;
+  const onTimeValue = indicators?.on_time_rate == null
+    ? "Sem dados"
+    : `${indicators.on_time_rate}%`;
+  const meanCompletionValue = indicators?.mean_completion_hours == null
+    ? "Sem dados"
+    : `${indicators.mean_completion_hours} h`;
+
   return (
-    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6 bg-slate-50">
-      <ModuleLabel>Dashboard</ModuleLabel>
+    <main className="space-y-4 p-4 sm:p-5 xl:p-6">
+      <header className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <h1 className="text-xl font-bold sm:text-2xl">Dashboard de manutenção</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Operação, confiabilidade e custos das ordens de serviço
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="xl:hidden"
+            onClick={() => setShowMobileFilters((current) => !current)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="ml-2 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => loadDashboard(filters, true)}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Atualizar
+          </Button>
+        </div>
+      </header>
 
-      {/* Cards de Indicadores de Custos */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <CostCard 
-          title="Gastos com Materiais"
-          value={data.totalMateriais}
-          icon={Building2}
-          color="text-blue-600"
-          bgColor="bg-blue-100"
-        />
-        <CostCard 
-          title="Gastos Hora-Homem"
-          value={data.totalHoraHomem}
-          icon={Clock}
-          color="text-green-600"
-          bgColor="bg-green-100"
-        />
-        <CostCard 
-          title="Gastos Terceirizados"
-          value={data.totalTerceirizados}
-          icon={Building2}
-          color="text-purple-600"
-          bgColor="bg-purple-100"
-        />
-        <CostCard 
-          title="Total Geral"
-          value={data.totalCost}
-          icon={DollarSign}
-          color="text-orange-600"
-          bgColor="bg-orange-100"
-        />
-      </div>
-
-      {/* Layout dos cards - Status e Tipos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StatusCard stats={data.statusStats} total={data.totalOS} />
-        <GenericChartCard title="Tipos de Manutenção" data={data.tiposData} icon={PieChartIcon} height={300}>
-          <PieChart>
-            <Pie 
-              data={data.tiposData} 
-              dataKey="value" 
-              nameKey="name" 
-              cx="50%" 
-              cy="50%" 
-              innerRadius={60} 
-              outerRadius={80} 
-              paddingAngle={5}
-              label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-              labelLine={false}
+      <section
+        className={`${showMobileFilters ? "block" : "hidden"} rounded-md border bg-card p-3 xl:block`}
+        aria-label="Filtros do dashboard"
+      >
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+          <Input
+            type="date"
+            aria-label="Data inicial"
+            value={filters.date_from}
+            onChange={(event) => setFilters((current) => ({
+              ...current,
+              date_from: event.target.value,
+            }))}
+          />
+          <Input
+            type="date"
+            aria-label="Data final"
+            value={filters.date_to}
+            onChange={(event) => setFilters((current) => ({
+              ...current,
+              date_to: event.target.value,
+            }))}
+          />
+          {[
+            ["location", "Todos os locais", references.locations],
+            ["equipment", "Todos os equipamentos", references.equipment],
+            ["maintenance_type", "Todos os tipos", references.types],
+            ["priority", "Todas as prioridades", references.priorities],
+            ["responsible", "Todos os responsáveis", references.maintainers],
+          ].map(([key, placeholder, options]) => (
+            <Select
+              key={key}
+              value={filters[key] || "all"}
+              onValueChange={(value) => setFilters((current) => ({
+                ...current,
+                [key]: value === "all" ? "" : value,
+              }))}
             >
-              {data.tiposData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={MODERN_COLORS[index % MODERN_COLORS.length]} />
+              <SelectTrigger aria-label={placeholder}>
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{placeholder}</SelectItem>
+                {options.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {getReferenceLabel(item)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {[
+            ["today", "Hoje"],
+            ["7d", "7 dias"],
+            ["30d", "30 dias"],
+            ["month", "Este mês"],
+            ["year", "Este ano"],
+          ].map(([key, label]) => (
+            <Button
+              key={key}
+              size="sm"
+              variant="outline"
+              onClick={() => setPeriod(key)}
+            >
+              {label}
+            </Button>
+          ))}
+          <span className="flex-1" />
+          <Button size="sm" variant="ghost" onClick={clearFilters}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Limpar
+          </Button>
+          <Button size="sm" onClick={applyFilters}>
+            <Filter className="mr-2 h-4 w-4" />
+            Aplicar
+          </Button>
+        </div>
+      </section>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-200">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Fechar mensagem"
+            onClick={() => setError("")}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {loading ? (
+        <DashboardSkeleton />
+      ) : data ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              Período: {new Date(`${data.period.date_from}T12:00:00`).toLocaleDateString("pt-BR")}
+              {" a "}
+              {new Date(`${data.period.date_to}T12:00:00`).toLocaleDateString("pt-BR")}
+            </span>
+            <span>Atualizado em {formatDateTime(data.last_updated)}</span>
+          </div>
+
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
+            <IndicatorCard
+              label="OS abertas"
+              value={indicators.open}
+              detail={`${indicators.unassigned} sem responsável`}
+              icon={Wrench}
+              tone="blue"
+              title="Ordens aprovadas que não estão concluídas, canceladas ou recusadas"
+              onClick={() => openOrderList({ situation: "open" })}
+            />
+            <IndicatorCard
+              label="OS vencidas"
+              value={indicators.overdue}
+              detail="Prazo anterior ao momento atual"
+              icon={CalendarClock}
+              tone="red"
+              title="Ordens abertas cujo prazo já terminou"
+              onClick={() => openOrderList({ situation: "overdue" })}
+            />
+            <IndicatorCard
+              label="Emergenciais"
+              value={indicators.emergency}
+              detail="Prioridade crítica ou emergência"
+              icon={AlertTriangle}
+              tone="red"
+              title="Ordens abertas com prioridade crítica ou emergencial"
+              onClick={() => openOrderList({ situation: "emergency" })}
+            />
+            <IndicatorCard
+              label="Aguardando peça"
+              value={indicators.waiting_parts}
+              detail="Ordens bloqueadas por material"
+              icon={Boxes}
+              tone="orange"
+              title="Ordens abertas no status Aguardando peças"
+              onClick={() => openOrderList({ situation: "waiting_parts" })}
+            />
+            <IndicatorCard
+              label="No prazo"
+              value={onTimeValue}
+              detail={`${indicators.on_time_evaluable} concluídas avaliadas`}
+              icon={CheckCircle2}
+              tone="green"
+              title="Percentual concluído até o prazo informado"
+              onClick={() => openOrderList(
+                completedStatus ? { status: completedStatus.id } : {}
+              )}
+            />
+            <IndicatorCard
+              label="Tempo de conclusão"
+              value={meanCompletionValue}
+              detail={`${indicators.completed} concluídas no período`}
+              icon={Clock3}
+              tone="slate"
+              title="Média entre a abertura e a conclusão das ordens"
+              onClick={() => openOrderList(
+                completedStatus ? { status: completedStatus.id } : {}
+              )}
+            />
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[1.65fr_1fr]">
+            <Card className="rounded-md">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base">Ordens que requerem atenção</CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Priorizadas por prazo, criticidade e antiguidade
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openOrderList(
+                      attentionFilter === "all"
+                        ? { situation: "open" }
+                        : { situation: attentionFilter }
+                    )}
+                  >
+                    Ver todas
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
+                  {ATTENTION_TABS.map(([key, label]) => (
+                    <Button
+                      key={key}
+                      size="sm"
+                      variant={attentionFilter === key ? "secondary" : "ghost"}
+                      className="shrink-0"
+                      onClick={() => setAttentionFilter(key)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {visibleAttention.length === 0 ? (
+                  <EmptyState>Nenhuma ordem exige atenção neste filtro.</EmptyState>
+                ) : (
+                  <div className="divide-y overflow-hidden rounded-md border">
+                    {visibleAttention.slice(0, 8).map((order) => (
+                      <button
+                        type="button"
+                        key={order.id}
+                        className="grid w-full gap-2 p-3 text-left hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none sm:grid-cols-[minmax(0,1.5fr)_auto_auto] sm:items-center"
+                        onClick={() => navigate(`/editar-os?id=${order.id}`)}
+                      >
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2">
+                            <strong className="text-sm">{order.number}</strong>
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${SITUATION_STYLES[order.situation]}`}>
+                              {SITUATION_LABELS[order.situation]}
+                            </span>
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">
+                            {order.equipment}
+                          </span>
+                        </span>
+                        <span className="text-xs">
+                          <span className="block font-medium">{formatDateTime(order.due_at)}</span>
+                          <span className="text-muted-foreground">
+                            {formatOpenTime(order.open_hours)} em aberto
+                          </span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {order.responsible || "Sem responsável"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-md">
+              <CardHeader>
+                <CardTitle className="text-base">Abertas x concluídas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {chartData.length === 0 ? (
+                  <EmptyState>Sem movimentação no período selecionado.</EmptyState>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ left: -20, right: 8 }}>
+                        <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                        <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend />
+                        <Line
+                          name="Abertas"
+                          type="monotone"
+                          dataKey="opened"
+                          stroke={CHART_COLORS.opened}
+                          strokeWidth={2}
+                        />
+                        <Line
+                          name="Concluídas"
+                          type="monotone"
+                          dataKey="completed"
+                          stroke={CHART_COLORS.completed}
+                          strokeWidth={2}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-2">
+            <Card className="rounded-md">
+              <CardHeader>
+                <CardTitle className="text-base">Distribuição por status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.statuses.length === 0 ? (
+                  <EmptyState>Sem ordens no período selecionado.</EmptyState>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={data.statuses}
+                        margin={{ left: 18, right: 18 }}
+                        onClick={(event) => {
+                          const status = event?.activePayload?.[0]?.payload;
+                          if (status) openOrderList({ status: status.id });
+                        }}
+                      >
+                        <CartesianGrid stroke="hsl(var(--border))" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} hide />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={110}
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={11}
+                        />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar
+                          name="Ordens"
+                          dataKey="count"
+                          fill={CHART_COLORS.bars}
+                          radius={[0, 4, 4, 0]}
+                          className="cursor-pointer"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-md">
+              <CardHeader>
+                <CardTitle className="text-base">Perfil da manutenção</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.types.length === 0 ? (
+                  <EmptyState>Sem tipos de manutenção no período.</EmptyState>
+                ) : (
+                  <div className="space-y-3">
+                    {data.types.map((type) => {
+                      const total = data.types.reduce((sum, item) => sum + item.count, 0);
+                      const percentage = total ? Math.round(type.count * 100 / total) : 0;
+                      return (
+                        <button
+                          type="button"
+                          key={type.id}
+                          className="block w-full rounded-md p-2 text-left hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => openOrderList({ maintenance_type: type.id })}
+                        >
+                          <span className="mb-1.5 flex justify-between text-sm">
+                            <span>{type.name}</span>
+                            <strong>{type.count} <span className="font-normal text-muted-foreground">({percentage}%)</span></strong>
+                          </span>
+                          <span className="block h-2 overflow-hidden rounded-full bg-muted">
+                            <span
+                              className="block h-full rounded-full bg-cyan-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          <Card className="rounded-md">
+            <CardHeader>
+              <CardTitle className="text-base">Equipamentos com maior impacto</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Ordens corretivas e emergenciais do período
+              </p>
+            </CardHeader>
+            <CardContent>
+              {data.equipment_impact.length === 0 ? (
+                <EmptyState>Sem ordens corretivas ou emergenciais no período.</EmptyState>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[680px] text-sm">
+                    <thead className="text-left text-xs text-muted-foreground">
+                      <tr className="border-b">
+                        <th className="p-2 font-medium">Equipamento</th>
+                        <th className="p-2 text-right font-medium">OS corretivas</th>
+                        <th className="p-2 text-right font-medium">Reincidências</th>
+                        <th className="p-2 text-right font-medium">Parada</th>
+                        <th className="p-2 text-right font-medium">Custo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.equipment_impact.map((equipment) => (
+                        <tr
+                          key={equipment.id || equipment.name}
+                          className="cursor-pointer border-b last:border-0 hover:bg-accent/40"
+                          tabIndex={0}
+                          onClick={() => equipment.id && openOrderList({ equipment: equipment.id })}
+                          onKeyDown={(event) => {
+                            if ((event.key === "Enter" || event.key === " ") && equipment.id) {
+                              openOrderList({ equipment: equipment.id });
+                            }
+                          }}
+                        >
+                          <td className="p-2 font-medium">{equipment.name}</td>
+                          <td className="p-2 text-right">{equipment.count}</td>
+                          <td className="p-2 text-right">{equipment.recurrences}</td>
+                          <td className="p-2 text-right">
+                            {(equipment.downtime_minutes / 60).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h
+                          </td>
+                          <td className="p-2 text-right">{formatCurrency(equipment.total_cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <CircleDollarSign className="h-5 w-5 text-emerald-400" />
+              <h2 className="text-base font-bold">Custos do período</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+              {[
+                ["Custo total", data.costs.total, Gauge],
+                ["Materiais", data.costs.materials, Boxes],
+                ["Mão de obra", data.costs.services, Wrench],
+                ["Terceirização", data.costs.outsourced, UserRoundX],
+                ["Média por OS", data.costs.average, CircleDollarSign],
+              ].map(([label, value, Icon]) => (
+                <Card key={label} className="rounded-md">
+                  <CardContent className="p-4">
+                    <span className="flex items-center justify-between text-xs text-muted-foreground">
+                      {label}
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <strong className="mt-3 block text-base sm:text-lg">
+                      {formatCurrency(value)}
+                    </strong>
+                  </CardContent>
+                </Card>
               ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-          </PieChart>
-        </GenericChartCard>
-      </div>
-
-      {/* Gráfico de Custo Mensal - Gráfico de Linhas */}
-      <GenericChartCard title="Custo Mensal de Manutenção" data={data.custoMensalData} icon={TrendingUp} height={350}>
-        <LineChart data={data.custoMensalData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis 
-            dataKey="month" 
-            tick={{ fontSize: 12, fill: '#64748b' }}
-            stroke="#cbd5e1"
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Line 
-            type="monotone" 
-            dataKey="Valor Gasto" 
-            stroke={CHART_COLORS.custoMensal}
-            strokeWidth={3}
-            dot={{ fill: CHART_COLORS.custoMensal, r: 5, strokeWidth: 2, stroke: '#fff' }}
-            activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
-            label={<CustomLabel />}
-          />
-        </LineChart>
-      </GenericChartCard>
-
-      {/* OS por Localização e Top Equipamentos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ProgressListCard
-          title="Top 10 Localizações com mais OS"
-          data={data.localData}
-          total={data.totalOS}
-          totalValue={data.totalOS}
-          icon={MapPin}
-          valueKey="OS"
-          labelKey="name"
-          barColor={CHART_COLORS.localizacao}
-        />
-        
-        <ProgressListCard
-          title="Top 10 Equipamentos com mais OS"
-          data={data.topEquipamentosOS}
-          total={data.totalOS}
-          totalValue={data.totalOS}
-          icon={Settings}
-          valueKey="Nº de OS"
-          labelKey="name"
-          barColor={CHART_COLORS.equipamentosOS}
-        />
-      </div>
-
-      {/* Top Equipamentos por Custo */}
-      <ProgressListCard
-        title="Top 10 Equipamentos com Maior Custo"
-        data={data.topEquipamentosCusto}
-        total={data.totalCost}
-        totalValue={data.totalCost}
-        icon={DollarSign}
-        valueKey="Valor Gasto"
-        labelKey="name"
-        formatValue={formatCurrency}
-        barColor={CHART_COLORS.equipamentosCusto}
-      />
-    </div>
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <strong className="mb-1 block text-foreground">Orçamento</strong>
+                {data.budget.message}
+              </div>
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <strong className="mb-1 block text-foreground">Causas de falha</strong>
+                {data.causes.message}
+              </div>
+            </div>
+          </section>
+        </>
+      ) : null}
+    </main>
   );
 }

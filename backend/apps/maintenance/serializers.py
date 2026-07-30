@@ -26,18 +26,24 @@ class MaintenanceAreaSerializer(ReferenceSerializer):
 class MaintenanceTypeSerializer(ReferenceSerializer):
     class Meta(ReferenceSerializer.Meta):
         model = MaintenanceType
+        fields = ReferenceSerializer.Meta.fields + ["category"]
 
 
 class WorkOrderStatusSerializer(ReferenceSerializer):
     class Meta(ReferenceSerializer.Meta):
         model = WorkOrderStatus
-        fields = ReferenceSerializer.Meta.fields + ["is_initial", "is_final", "order"]
+        fields = ReferenceSerializer.Meta.fields + [
+            "is_initial",
+            "is_final",
+            "order",
+            "category",
+        ]
 
 
 class PrioritySerializer(ReferenceSerializer):
     class Meta(ReferenceSerializer.Meta):
         model = Priority
-        fields = ReferenceSerializer.Meta.fields + ["color", "order"]
+        fields = ReferenceSerializer.Meta.fields + ["color", "order", "severity"]
 
 
 class WorkOrderSerializer(serializers.ModelSerializer):
@@ -53,6 +59,19 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     equipment = serializers.SerializerMethodField()
     created_date = serializers.DateTimeField(source="created_at", read_only=True)
     updated_date = serializers.DateTimeField(source="updated_at", read_only=True)
+    maintenance_type_name = serializers.CharField(
+        source="maintenance_type.description",
+        read_only=True,
+    )
+    status_name = serializers.CharField(source="status.description", read_only=True)
+    status_category = serializers.CharField(source="status.category", read_only=True)
+    area_name = serializers.CharField(source="area.description", read_only=True)
+    priority_name = serializers.CharField(source="priority.description", read_only=True)
+    priority_severity = serializers.CharField(source="priority.severity", read_only=True)
+    assigned_maintainer_name = serializers.CharField(
+        source="assigned_maintainer.name",
+        read_only=True,
+    )
 
     class Meta:
         model = WorkOrder
@@ -65,7 +84,9 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "priority",
             "requester",
             "scheduled_at",
+            "due_at",
             "completed_at",
+            "assigned_maintainer",
             "machine_stopped",
             "manual_downtime_minutes",
             "downtime_minutes",
@@ -82,6 +103,13 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "approved_at",
             "equipment",
             "equipment_ids",
+            "maintenance_type_name",
+            "status_name",
+            "status_category",
+            "area_name",
+            "priority_name",
+            "priority_severity",
+            "assigned_maintainer_name",
             "created_date",
             "updated_date",
         ]
@@ -122,6 +150,11 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         if scheduled_at and completed_at and completed_at < scheduled_at:
             raise serializers.ValidationError(
                 {"completed_at": "A conclusao nao pode ser anterior ao agendamento."}
+            )
+        due_at = attrs.get("due_at", getattr(self.instance, "due_at", None))
+        if scheduled_at and due_at and due_at < scheduled_at:
+            raise serializers.ValidationError(
+                {"due_at": "O prazo nao pode ser anterior ao agendamento."}
             )
         return attrs
 

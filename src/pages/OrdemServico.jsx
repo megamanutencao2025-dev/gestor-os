@@ -13,8 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Search, Download, Filter, Trash2, Upload, HelpCircle, ArrowUpDown, Eye, MoreHorizontal, Printer, CheckCircle, XCircle, ClipboardCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Edit, Search, Download, Filter, Trash2, Upload, HelpCircle, ArrowUpDown, Eye, MoreHorizontal, Printer, CheckCircle, XCircle, ClipboardCheck, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { UploadFile, ExtractDataFromUploadedFile } from "@/integrations/Core";
@@ -33,12 +33,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { openBlankOrdemServicoPrint } from "@/utils/blankOrdemServicoPrint";
 
-const SortableHeader = ({ children, column, sortConfig, onSort }) => {
+const SortableHeader = ({ children, column, sortConfig, onSort, className = "" }) => {
   const isSorted = sortConfig.key === column;
   const direction = isSorted ? sortConfig.direction : undefined;
 
   return (
-    <TableHead onClick={() => onSort(column)} className="cursor-pointer hover:bg-slate-50">
+    <TableHead onClick={() => onSort(column)} className={`cursor-pointer hover:bg-accent/40 ${className}`}>
       <div className="flex items-center gap-2">
         {children}
         {isSorted ? (
@@ -55,22 +55,109 @@ const SortableHeader = ({ children, column, sortConfig, onSort }) => {
   );
 };
 
+const ORDERING_FIELDS = {
+  numero: "number",
+  data_programada: "scheduled_at",
+  prazo: "due_at",
+  prioridade: "priority__order",
+  tipo_nome: "maintenance_type__description",
+  status_nome: "status__order",
+  solicitante: "requester",
+};
+
+const QUICK_FILTERS = [
+  ["", "Todas"],
+  ["open", "Abertas"],
+  ["overdue", "Vencidas"],
+  ["due_today", "Vencem hoje"],
+  ["unassigned", "Sem responsável"],
+  ["waiting_parts", "Aguardando peça"],
+  ["emergency", "Emergenciais"],
+];
+
+const toLegacyListOrder = (order) => {
+  const equipamentos = Array.isArray(order.equipment)
+    ? order.equipment.map((item) => ({
+      equipamento_id: item.id,
+      equipamento_nome: item.description,
+      localizacao_celula: item.location || "",
+    }))
+    : [];
+  const scheduled = order.scheduled_at ? new Date(order.scheduled_at) : null;
+  const due = order.due_at ? new Date(order.due_at) : null;
+  return {
+    ...order,
+    numero: order.number,
+    solicitante: order.requester,
+    tipo_nome: order.maintenance_type_name,
+    status_nome: order.status_name,
+    status_id: order.status,
+    area_nome: order.area_name,
+    prioridade_nome: order.priority_name,
+    prioridade_severidade: order.priority_severity,
+    responsavel_id: order.assigned_maintainer,
+    responsavel_nome: order.assigned_maintainer_name,
+    data_programada: scheduled?.toISOString().slice(0, 10) || "",
+    hora_programada: scheduled?.toTimeString().slice(0, 5) || "",
+    data_prazo: due?.toISOString().slice(0, 10) || "",
+    hora_prazo: due?.toTimeString().slice(0, 5) || "",
+    equipamentos,
+    equipamento_nome: equipamentos[0]?.equipamento_nome || order.equipment_description,
+    local: equipamentos[0]?.localizacao_celula || "",
+  };
+};
+
+const formatDateTime = (date, time) => {
+  if (!date) return "-";
+  return `${formatarData(date)}${time ? ` ${time}` : ""}`;
+};
+
+const getDeadlineState = (order) => {
+  if (["completed", "cancelled", "rejected"].includes(order.status_category)) {
+    return null;
+  }
+  if (!order.due_at) return { label: "Sem prazo", className: "border-slate-500/40 text-slate-400" };
+  const deadline = new Date(order.due_at);
+  const now = new Date();
+  if (deadline < now) return { label: "Vencida", className: "border-red-500/50 bg-red-500/10 text-red-300" };
+  if (deadline.toDateString() === now.toDateString()) {
+    return { label: "Vence hoje", className: "border-amber-500/50 bg-amber-500/10 text-amber-300" };
+  }
+  return { label: "No prazo", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" };
+};
+
+const formatOpenTime = (createdAt, statusCategory) => {
+  if (!createdAt || ["completed", "cancelled", "rejected"].includes(statusCategory)) return "-";
+  const hours = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 3600000));
+  return hours < 24 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+};
+
 
 export default function OrdemServicoPage() {
   const { user: currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [ordensServico, setOrdensServico] = useState([]);
+  const [legacyOrders, setLegacyOrders] = useState([]);
+  const [listMeta, setListMeta] = useState({ count: 0, next: null, previous: null });
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+  const [pageSize, setPageSize] = useState(Number(searchParams.get("page_size")) || 25);
   const [pendingSolicitations, setPendingSolicitations] = useState([]);
   const [equipamentos, setEquipamentos] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [areas, setAreas] = useState([]);
   const [statusList, setStatusList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [filters, setFilters] = useState({
-    equipamento_id: "",
-    status_id: "",
-    data_inicio: "",
-    data_fim: ""
+    equipamento_id: searchParams.get("equipment") || "",
+    status_id: searchParams.get("status") || "",
+    data_inicio: searchParams.get("date_from") || "",
+    data_fim: searchParams.get("date_to") || "",
+    location: searchParams.get("location") || "",
+    maintenance_type: searchParams.get("maintenance_type") || "",
+    priority: searchParams.get("priority") || "",
+    responsible: searchParams.get("responsible") || "",
+    situation: searchParams.get("situation") || "",
   });
   const [sortConfig, setSortConfig] = useState({ key: 'created_date', direction: 'descending' });
   const [importStatus, setImportStatus] = useState({ type: '', message: '' });
@@ -91,6 +178,64 @@ export default function OrdemServicoPage() {
     loadData();
   }, [currentUser?.id]);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => loadOrderPage(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [searchTerm, filters, sortConfig, page, pageSize]);
+
+  useEffect(() => {
+    if (activeTab !== "terceirizados" || legacyOrders.length > 0) return;
+    OrdemServico.list("-created_date")
+      .then((records) => setLegacyOrders(Array.isArray(records) ? records : []))
+      .catch((error) => setPageError(error?.message || "Não foi possível carregar os serviços terceirizados."));
+  }, [activeTab, legacyOrders.length]);
+
+  const loadOrderPage = async () => {
+    setLoading(true);
+    setPageError("");
+    try {
+      const backendOrdering = ORDERING_FIELDS[sortConfig.key] || "created_at";
+      const ordering = sortConfig.direction === "descending"
+        ? `-${backendOrdering.replace(/^-/, "")}`
+        : backendOrdering.replace(/^-/, "");
+      const query = {
+        page,
+        page_size: pageSize,
+        search: searchTerm.trim(),
+        equipment: filters.equipamento_id,
+        status: filters.status_id,
+        date_from: filters.data_inicio,
+        date_to: filters.data_fim,
+        location: filters.location,
+        maintenance_type: filters.maintenance_type,
+        priority: filters.priority,
+        responsible: filters.responsible,
+        situation: filters.situation,
+        ordering,
+      };
+      const response = await appApi.workOrders.list(query);
+      setOrdensServico((response?.results || []).map(toLegacyListOrder));
+      setListMeta({
+        count: response?.count || 0,
+        next: response?.next || null,
+        previous: response?.previous || null,
+      });
+      const nextParams = new URLSearchParams();
+      Object.entries(query).forEach(([key, value]) => {
+        if (value && !(key === "page" && value === 1) && !(key === "page_size" && value === 25)) {
+          nextParams.set(key, String(value));
+        }
+      });
+      setSearchParams(nextParams, { replace: true });
+    } catch (error) {
+      setOrdensServico([]);
+      setListMeta({ count: 0, next: null, previous: null });
+      setPageError(error?.message || "Não foi possível carregar as ordens de serviço.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     setPageError("");
@@ -98,8 +243,7 @@ export default function OrdemServicoPage() {
       const pendingDataPromise = currentUser?.role === "admin"
         ? appApi.admin.workOrders.pendingSolicitations()
         : Promise.resolve([]);
-      const [osData, equipData, tiposData, areasData, statusData, pendingData] = await Promise.all([
-        OrdemServico.list('-created_date'), // sort by creation date
+      const [equipData, tiposData, areasData, statusData, pendingData] = await Promise.all([
         Equipamento.list(),
         TipoManutencao.list(),
         AreaManutencao.list(),
@@ -107,15 +251,14 @@ export default function OrdemServicoPage() {
         pendingDataPromise,
       ]);
 
-      setOrdensServico(Array.isArray(osData) ? osData : []);
       setEquipamentos(Array.isArray(equipData) ? equipData : []);
       setTipos(Array.isArray(tiposData) ? tiposData : []);
       setAreas(Array.isArray(areasData) ? areasData : []);
       setStatusList(Array.isArray(statusData) ? statusData : []);
       setPendingSolicitations(Array.isArray(pendingData) ? pendingData : []);
+      await loadOrderPage();
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      setOrdensServico([]);
       setEquipamentos([]);
       setTipos([]);
       setAreas([]);
@@ -169,8 +312,8 @@ export default function OrdemServicoPage() {
 
   const getOsEquipamentos = (os) => Array.isArray(os?.equipamentos) ? os.equipamentos : [];
 
-  const sortedAndFilteredOS = useMemo(() => {
-    const osList = Array.isArray(ordensServico) ? ordensServico : [];
+  const clientSortedAndFilteredOS = useMemo(() => {
+    const osList = Array.isArray(legacyOrders) ? legacyOrders : [];
     let filtered = osList.filter(os => {
       const osEquipamentos = getOsEquipamentos(os);
       const matchesSearch =
@@ -220,11 +363,16 @@ export default function OrdemServicoPage() {
     }
 
     return filtered;
-    }, [ordensServico, searchTerm, filters, sortConfig]);
+    }, [legacyOrders, searchTerm, filters, sortConfig]);
+
+  const sortedAndFilteredOS = useMemo(
+    () => (Array.isArray(ordensServico) ? ordensServico : []),
+    [ordensServico],
+  );
 
     const servicosTerceirizados = useMemo(() => {
     let allServices = [];
-    const osList = Array.isArray(ordensServico) ? ordensServico : [];
+    const osList = clientSortedAndFilteredOS;
 
     osList.forEach(os => {
       const terceirizados = Array.isArray(os.terceirizados) ? os.terceirizados : [];
@@ -274,7 +422,7 @@ export default function OrdemServicoPage() {
     }
 
     return allServices.sort((a, b) => new Date(b.data_servico || 0) - new Date(a.data_servico || 0));
-    }, [ordensServico, searchTerm, filters]);
+    }, [legacyOrders, searchTerm, filters]);
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -282,6 +430,7 @@ export default function OrdemServicoPage() {
       direction = 'descending';
     }
     setSortConfig({ key, direction });
+    setPage(1);
   };
 
   const clearFilters = () => {
@@ -289,8 +438,15 @@ export default function OrdemServicoPage() {
       equipamento_id: "",
       status_id: "",
       data_inicio: "",
-      data_fim: ""
+      data_fim: "",
+      location: "",
+      maintenance_type: "",
+      priority: "",
+      responsible: "",
+      situation: "",
     });
+    setSearchTerm("");
+    setPage(1);
   };
 
   const hasActiveFilters = useMemo(() => {
@@ -299,23 +455,23 @@ export default function OrdemServicoPage() {
 
   // Função para determinar a cor do badge de status
   const getStatusBadgeColor = (statusNome) => {
-    if (!statusNome) return "bg-slate-100 text-slate-800";
+    if (!statusNome) return "border border-slate-500/40 bg-slate-500/10 text-slate-300";
     
     const status = statusNome.toLowerCase();
     
     if (status.includes('concluída') || status.includes('concluida') || status.includes('finalizada')) {
-      return "bg-green-100 text-green-800";
+      return "border border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
     }
     
     if (status.includes('aguardando') && status.includes('peças')) {
-      return "bg-yellow-100 text-yellow-800";
+      return "border border-orange-500/40 bg-orange-500/10 text-orange-300";
     }
     
     if (status.includes('aberta') || status.includes('pendente') || status.includes('em andamento')) {
-      return "bg-red-100 text-red-700";
+      return "border border-blue-500/40 bg-blue-500/10 text-blue-300";
     }
     
-    return "bg-slate-100 text-slate-800";
+    return "border border-slate-500/40 bg-slate-500/10 text-slate-300";
   };
 
   const handlePrintOS = async (osId) => {
@@ -605,15 +761,19 @@ export default function OrdemServicoPage() {
     }
   };
 
-  const handleViewOS = (os) => {
-    setSelectedOSForView(os);
+  const handleViewOS = async (os) => {
+    try {
+      setSelectedOSForView(await OrdemServico.get(os.id));
+    } catch {
+      setSelectedOSForView(os);
+    }
   };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden p-3 printable-area sm:p-4 lg:h-screen lg:p-6 print:h-auto print:overflow-visible">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
         <div className="no-print sticky top-0 z-20 shrink-0 space-y-3 bg-background pb-3">
-          <h1 className="text-lg font-semibold leading-none text-slate-900">Ordens de Serviço</h1>
+          <h1 className="text-lg font-semibold leading-none text-foreground">Ordens de Serviço</h1>
 
           {pageError && (
             <Alert variant="destructive">
@@ -621,9 +781,9 @@ export default function OrdemServicoPage() {
             </Alert>
           )}
 
-        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg bg-slate-100 p-1 sm:w-fit">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-md bg-muted p-1 sm:w-fit">
           <TabsTrigger value="ordens">
-            Ordens de Serviço ({sortedAndFilteredOS.length})
+            Ordens de Serviço ({listMeta.count})
           </TabsTrigger>
           {currentUser?.role === "admin" && (
             <TabsTrigger value="solicitacoes" className="gap-2">
@@ -642,9 +802,12 @@ export default function OrdemServicoPage() {
           <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder="Pesquisar por OS, equipamento ou solicitante"
+              placeholder="Pesquisar por OS, equipamento, local, solicitante ou responsável"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               className="h-9 pl-9"
             />
           </div>
@@ -657,7 +820,7 @@ export default function OrdemServicoPage() {
                   Filtros
                   {hasActiveFilters && (
                     <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-blue-600 text-white text-xs">
-                      {[filters.equipamento_id, filters.status_id, filters.data_inicio, filters.data_fim].filter(Boolean).length}
+                      {Object.values(filters).filter(Boolean).length}
                     </Badge>
                   )}
                 </Button>
@@ -784,6 +947,26 @@ export default function OrdemServicoPage() {
             </Link>
           </div>
         </div>
+
+          {activeTab === "ordens" && (
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {QUICK_FILTERS.map(([value, label]) => (
+                <Button
+                  key={value || "all"}
+                  type="button"
+                  size="sm"
+                  variant={filters.situation === value ? "secondary" : "ghost"}
+                  className="shrink-0"
+                  onClick={() => {
+                    setFilters((current) => ({ ...current, situation: value }));
+                    setPage(1);
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {importStatus.message && (
             <Alert variant={importStatus.type === 'error' ? 'destructive' : 'default'}>
@@ -923,11 +1106,11 @@ export default function OrdemServicoPage() {
 
         <TabsContent value="ordens" className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
           {/* Lista de OS */}
-          <Card className="flex h-full min-h-0 flex-col overflow-hidden shadow-sm border-0 bg-white">
+          <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-md">
         <CardHeader className="shrink-0">
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-lg">Lista de Ordens de Serviço ({sortedAndFilteredOS.length})</CardTitle>
+              <CardTitle className="text-lg">Lista de Ordens de Serviço ({listMeta.count})</CardTitle>
               {hasActiveFilters && (
                 <p className="text-sm text-slate-500 mt-1">
                   Filtros ativos: {[
@@ -940,6 +1123,41 @@ export default function OrdemServicoPage() {
                     Limpar
                   </Button>
                 </p>
+              )}
+              {Object.entries(filters).some(([, value]) => value) && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {Object.entries(filters)
+                    .filter(([, value]) => value)
+                    .map(([key, value]) => {
+                      const labels = {
+                        equipamento_id: equipamentos.find((item) => item.id === value)?.descricao || "Equipamento",
+                        status_id: statusList.find((item) => item.id === value)?.descricao || "Status",
+                        data_inicio: `Desde ${formatarData(value)}`,
+                        data_fim: `Até ${formatarData(value)}`,
+                        location: "Local",
+                        maintenance_type: tipos.find((item) => item.id === value)?.descricao || "Tipo",
+                        priority: "Prioridade",
+                        responsible: "Responsável",
+                        situation: QUICK_FILTERS.find(([filter]) => filter === value)?.[1] || "Situação",
+                      };
+                      return (
+                        <Button
+                          key={key}
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 gap-1 text-xs"
+                          onClick={() => {
+                            setFilters((current) => ({ ...current, [key]: "" }));
+                            setPage(1);
+                          }}
+                        >
+                          {labels[key]}
+                          <X className="h-3 w-3" />
+                        </Button>
+                      );
+                    })}
+                </div>
               )}
             </div>
             {/* Search input was moved to the controls div above */}
@@ -958,22 +1176,32 @@ export default function OrdemServicoPage() {
               ))}
             </div>
           ) : (
+            <>
             <Table>
-              <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
+              <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-card">
                 <TableRow>
                   <SortableHeader column="numero" sortConfig={sortConfig} onSort={handleSort}>Nº OS</SortableHeader>
-                  <TableHead className="w-[25%]">Equipamento</TableHead>
-                  <SortableHeader column="tipo_nome" sortConfig={sortConfig} onSort={handleSort}>Tipo</SortableHeader>
+                  <TableHead>Equipamento</TableHead>
+                  <SortableHeader className="hidden lg:table-cell" column="prioridade" sortConfig={sortConfig} onSort={handleSort}>Prioridade</SortableHeader>
+                  <SortableHeader className="hidden xl:table-cell" column="tipo_nome" sortConfig={sortConfig} onSort={handleSort}>Tipo</SortableHeader>
                   <SortableHeader column="status_nome" sortConfig={sortConfig} onSort={handleSort}>Status</SortableHeader>
-                  <SortableHeader column="data_programada" sortConfig={sortConfig} onSort={handleSort}>Data</SortableHeader>
-                  <SortableHeader column="solicitante" sortConfig={sortConfig} onSort={handleSort}>Solicitante</SortableHeader>
-                  <SortableHeader column="local" sortConfig={sortConfig} onSort={handleSort}>Local</SortableHeader>
+                  <SortableHeader column="prazo" sortConfig={sortConfig} onSort={handleSort}>Prazo</SortableHeader>
+                  <TableHead className="hidden md:table-cell">Responsável</TableHead>
+                  <TableHead className="hidden xl:table-cell">Em aberto</TableHead>
+                  <SortableHeader className="hidden 2xl:table-cell" column="data_programada" sortConfig={sortConfig} onSort={handleSort}>Programada</SortableHeader>
+                  <SortableHeader className="hidden lg:table-cell" column="solicitante" sortConfig={sortConfig} onSort={handleSort}>Solicitante / local</SortableHeader>
                   <TableHead className="w-32 no-print">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedAndFilteredOS.map(os => (
-                  <TableRow key={os.id}>
+                  <TableRow
+                    key={os.id}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      if (!event.target.closest("button,a")) handleViewOS(os);
+                    }}
+                  >
                     <TableCell className="font-mono font-semibold">{os.numero}</TableCell>
                     <TableCell>
                       {getOsEquipamentos(os).length > 0 ? (
@@ -988,22 +1216,43 @@ export default function OrdemServicoPage() {
                               +{getOsEquipamentos(os).length - 2} mais
                             </Badge>
                           )}
+                          <span className="text-xs text-muted-foreground md:hidden">
+                            {os.responsavel_nome || "Sem responsável"}
+                          </span>
+                          <span className="text-xs text-muted-foreground lg:hidden">
+                            {os.prioridade_nome || "Sem prioridade"}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-slate-500">{os.equipamento_nome || "-"}</span>
                       )}
                     </TableCell>
-                    <TableCell>{os.tipo_nome}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <span className="text-sm font-medium">{os.prioridade_nome || "-"}</span>
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">{os.tipo_nome}</TableCell>
                     <TableCell>
                       <Badge className={`${getStatusBadgeColor(os.status_nome)}`}>
                         {os.status_nome}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {formatarData(os.data_programada)}
+                      <div className="space-y-1">
+                        <span className="block text-sm">{formatDateTime(os.data_prazo, os.hora_prazo)}</span>
+                        {getDeadlineState(os) && (
+                          <Badge variant="outline" className={getDeadlineState(os).className}>
+                            {getDeadlineState(os).label}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-sm">{os.solicitante}</TableCell>
-                    <TableCell className="text-sm">{os.local || "-"}</TableCell>
+                    <TableCell className="hidden text-sm md:table-cell">{os.responsavel_nome || "Não atribuído"}</TableCell>
+                    <TableCell className="hidden text-sm xl:table-cell">{formatOpenTime(os.created_at, os.status_category)}</TableCell>
+                    <TableCell className="hidden text-sm 2xl:table-cell">{formatDateTime(os.data_programada, os.hora_programada)}</TableCell>
+                    <TableCell className="hidden text-sm lg:table-cell">
+                      <span className="block">{os.solicitante || "-"}</span>
+                      <span className="block text-xs text-muted-foreground">{os.local || "-"}</span>
+                    </TableCell>
                     <TableCell className="no-print">
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleViewOS(os)} title="Visualizar">
@@ -1024,13 +1273,58 @@ export default function OrdemServicoPage() {
                 ))}
                 {sortedAndFilteredOS.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={11} className="text-center py-8 text-slate-500">
                       {searchTerm || hasActiveFilters ? "Nenhuma ordem de serviço encontrada" : "Nenhuma ordem de serviço cadastrada"}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
+            <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs text-muted-foreground">
+                {listMeta.count === 0
+                  ? "Nenhuma ordem"
+                  : `Exibindo ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, listMeta.count)} de ${listMeta.count} ordens`}
+              </span>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-24" aria-label="Registros por página">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[25, 50, 100].map((size) => (
+                      <SelectItem key={size} value={String(size)}>{size} / pág.</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  title="Página anterior"
+                  disabled={!listMeta.previous}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-10 text-center text-sm">{page}</span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  title="Próxima página"
+                  disabled={!listMeta.next}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -132,6 +132,17 @@ function normalizeSort(sort) {
   return sort ? `?sort=${encodeURIComponent(sort)}` : "";
 }
 
+function withQuery(path, params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
 function normalizeEntityPayload(entityName, payload) {
   if (entityName !== "OrdemServico") return payload;
   return Array.isArray(payload) ? normalizeOrdemServicoList(payload) : normalizeOrdemServico(payload);
@@ -219,6 +230,15 @@ export const appApi = {
     }),
   },
   entities,
+  dashboard: {
+    maintenance: (params) => request(
+      withQuery("/api/v1/dashboard/maintenance/", params)
+    ),
+  },
+  workOrders: {
+    list: (params) => request(withQuery("/api/v1/work-orders/", params)),
+    get: (id) => request(`/api/v1/work-orders/${encodeURIComponent(id)}/`),
+  },
   files: {
     async upload(file) {
       const dataUrl = await fileToDataUrl(file);

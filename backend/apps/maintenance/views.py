@@ -1,8 +1,17 @@
 from rest_framework import mixins, viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.permissions import ModuleActionPermission
 
+from .dashboard import build_maintenance_dashboard
+from .filters import (
+    DashboardFilterSerializer,
+    WorkOrderFilterSerializer,
+    apply_work_order_filters,
+)
 from .models import MaintenanceArea, MaintenanceType, Priority, WorkOrder, WorkOrderStatus
+from .pagination import WorkOrderPagination
 from .serializers import (
     MaintenanceAreaSerializer,
     MaintenanceTypeSerializer,
@@ -39,8 +48,10 @@ class PriorityViewSet(ActiveReferenceViewSet):
 
 class WorkOrderViewSet(viewsets.ModelViewSet):
     serializer_class = WorkOrderSerializer
+    pagination_class = WorkOrderPagination
     permission_classes = [ModuleActionPermission]
     required_module_keys = (
+        "dashboard",
         "ordens_servico",
         "nova_os",
         "planejamento_manutencao",
@@ -54,18 +65,26 @@ class WorkOrderViewSet(viewsets.ModelViewSet):
             "priority",
             "created_by",
             "approved_by",
-        ).prefetch_related("equipment_links")
-
-        status_id = self.request.query_params.get("status")
-        equipment_id = self.request.query_params.get("equipment")
-        approval = self.request.query_params.get(
-            "approval",
-            WorkOrder.ApprovalStatus.APPROVED,
+            "assigned_maintainer",
+        ).prefetch_related(
+            "equipment_links",
+            "equipment_links__equipment",
+            "equipment_links__equipment__location",
         )
-        if status_id:
-            queryset = queryset.filter(status_id=status_id)
-        if equipment_id:
-            queryset = queryset.filter(equipment=equipment_id)
-        if approval != "all":
-            queryset = queryset.filter(approval_status=approval)
-        return queryset.distinct()
+        serializer = WorkOrderFilterSerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        queryset = apply_work_order_filters(queryset, serializer.validated_data)
+        return queryset.order_by(serializer.validated_data["ordering"])
+
+
+class MaintenanceDashboardView(APIView):
+    permission_classes = [ModuleActionPermission]
+    required_module_keys = ("dashboard",)
+
+    def get_queryset(self):
+        return WorkOrder.objects.all()
+
+    def get(self, request):
+        serializer = DashboardFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        return Response(build_maintenance_dashboard(serializer.validated_data))

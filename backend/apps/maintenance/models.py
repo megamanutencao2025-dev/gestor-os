@@ -30,25 +30,69 @@ class MaintenanceArea(NamedReference):
 
 
 class MaintenanceType(NamedReference):
-    pass
+    class Category(models.TextChoices):
+        CORRECTIVE = "corrective", "Corretiva"
+        PREVENTIVE = "preventive", "Preventiva"
+        PREDICTIVE = "predictive", "Preditiva"
+        EMERGENCY = "emergency", "Emergencial"
+        IMPROVEMENT = "improvement", "Melhoria"
+        RELOCATION = "relocation", "Realocacao"
+        OUTSOURCED = "outsourced", "Terceirizada"
+        OTHER = "other", "Outra"
+
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.OTHER,
+        db_index=True,
+    )
 
 
 class WorkOrderStatus(NamedReference):
+    class Category(models.TextChoices):
+        OPEN = "open", "Aberta"
+        IN_PROGRESS = "in_progress", "Em andamento"
+        WAITING_PARTS = "waiting_parts", "Aguardando pecas"
+        WAITING_DOCUMENT = "waiting_document", "Aguardando documento"
+        COMPLETED = "completed", "Concluida"
+        CANCELLED = "cancelled", "Cancelada"
+        REJECTED = "rejected", "Reprovada"
+        OTHER = "other", "Outra"
+
     is_initial = models.BooleanField(default=False)
     is_final = models.BooleanField(default=False)
     order = models.PositiveSmallIntegerField(default=0)
+    category = models.CharField(
+        max_length=24,
+        choices=Category.choices,
+        default=Category.OTHER,
+        db_index=True,
+    )
 
     class Meta:
         ordering = ["order", "description"]
 
 
 class Priority(NamedReference):
+    class Severity(models.TextChoices):
+        LOW = "low", "Baixa"
+        NORMAL = "normal", "Normal"
+        HIGH = "high", "Alta"
+        CRITICAL = "critical", "Critica"
+        EMERGENCY = "emergency", "Emergencia"
+
     color = models.CharField(
         max_length=7,
         default="#64748B",
         validators=[color_validator],
     )
     order = models.PositiveSmallIntegerField(default=0)
+    severity = models.CharField(
+        max_length=16,
+        choices=Severity.choices,
+        default=Severity.NORMAL,
+        db_index=True,
+    )
 
     class Meta:
         ordering = ["order", "description"]
@@ -104,7 +148,15 @@ class WorkOrder(LegacyMappedModel):
         help_text="Descricao livre quando a maquina ainda nao esta cadastrada.",
     )
     scheduled_at = models.DateTimeField(null=True, blank=True)
+    due_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    assigned_maintainer = models.ForeignKey(
+        "workforce.Maintainer",
+        on_delete=models.PROTECT,
+        related_name="assigned_work_orders",
+        null=True,
+        blank=True,
+    )
     machine_stopped = models.BooleanField(default=True)
     manual_downtime_minutes = models.PositiveIntegerField(null=True, blank=True)
     downtime_minutes = models.PositiveIntegerField(default=0)
@@ -174,6 +226,8 @@ class WorkOrder(LegacyMappedModel):
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["scheduled_at"]),
             models.Index(fields=["priority", "status"]),
+            models.Index(fields=["approval_status", "due_at"]),
+            models.Index(fields=["assigned_maintainer", "status"]),
         ]
 
     def __str__(self):
