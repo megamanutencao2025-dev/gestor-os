@@ -26,12 +26,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { MATERIAL_UNIT_OPTIONS, normalizeProductName } from "@/utils/materialNormalization";
 
 const MAX_FILES = 10;
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const GRID_HEADER_CLASS =
+  "sticky top-0 z-20 h-9 border-r border-border bg-muted px-2 text-xs font-semibold text-foreground";
+const GRID_CELL_CLASS = "border-r border-border/70 px-2 py-1.5 align-middle";
 
 const STATUS_CONFIG = {
   new: { label: "Novo material", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" },
@@ -363,19 +366,30 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                 </Button>
               </div>
 
-              <div className="overflow-x-auto rounded-md border">
-                <Table className="min-w-[1680px]">
+              <div className="max-h-[58vh] overflow-auto rounded-md border bg-background">
+                <table className="w-full min-w-[2140px] border-collapse text-[13px] leading-5">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">Sel.</TableHead>
-                      <TableHead className="w-48">Origem</TableHead>
-                      <TableHead className="w-40">Códigos</TableHead>
-                      <TableHead className="w-72">Produto</TableHead>
-                      <TableHead className="w-52">Unidade</TableHead>
-                      <TableHead className="w-36 text-right">Valores</TableHead>
-                      <TableHead className="w-52">Centro de custo</TableHead>
-                      <TableHead className="w-52">Tratamento</TableHead>
-                      <TableHead className="w-44">Situação</TableHead>
+                    <TableRow className="hover:bg-muted">
+                      <TableHead className={`${GRID_HEADER_CLASS} left-0 z-30 w-12 text-center`}>
+                        Sel.
+                      </TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-52`}>Arquivo</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-64`}>Fornecedor</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-32`}>Cód. compra</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-44`}>Cód. interno</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-80`}>Produto</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-24 text-center`}>
+                        Unid. XML
+                      </TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-48`}>Unidade sistema</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-24 text-right`}>Qtd.</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-32 text-right`}>
+                        Custo unit.
+                      </TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-32 text-right`}>Total</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-52`}>Centro de custo</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-56`}>Tratamento</TableHead>
+                      <TableHead className={`${GRID_HEADER_CLASS} w-44 border-r-0`}>Situação</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,8 +400,17 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                           : STATUS_CONFIG[row.status] || STATUS_CONFIG.invalid;
                       const disabled = row.status === "invalid" || row.status === "duplicate_invoice";
                       return (
-                        <TableRow key={row.preview_id} className={!row.selected ? "opacity-60" : ""}>
-                          <TableCell className="align-top">
+                        <TableRow
+                          key={row.preview_id}
+                          className={
+                            row.selected
+                              ? "bg-background hover:bg-muted/30"
+                              : "bg-muted/20 text-muted-foreground hover:bg-muted/30"
+                          }
+                        >
+                          <TableCell
+                            className={`${GRID_CELL_CLASS} sticky left-0 z-10 bg-inherit text-center`}
+                          >
                             <Checkbox
                               checked={row.selected}
                               disabled={disabled}
@@ -396,15 +419,23 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                               }
                             />
                           </TableCell>
-                          <TableCell className="align-top">
-                            <div className="truncate text-xs font-medium">{row.filename}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">{row.supplierName}</div>
-                          </TableCell>
-                          <TableCell className="space-y-2 align-top">
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">Compra</div>
-                              <div className="text-xs font-medium">{row.purchase_code || "-"}</div>
+                          <TableCell className={GRID_CELL_CLASS}>
+                            <div
+                              className="max-w-48 truncate font-medium text-foreground"
+                              title={row.filename}
+                            >
+                              {row.filename}
                             </div>
+                          </TableCell>
+                          <TableCell className={GRID_CELL_CLASS}>
+                            <div className="max-w-60 whitespace-normal" title={row.supplierName}>
+                              {row.supplierName || "-"}
+                            </div>
+                          </TableCell>
+                          <TableCell className={`${GRID_CELL_CLASS} font-medium tabular-nums`}>
+                            {row.purchase_code || "-"}
+                          </TableCell>
+                          <TableCell className={GRID_CELL_CLASS}>
                             <Input
                               value={row.internal_code || ""}
                               disabled={!row.selected || row.action !== "create"}
@@ -412,10 +443,10 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                               onChange={(event) =>
                                 updateRow(row.preview_id, "internal_code", event.target.value)
                               }
-                              className="h-8 text-xs"
+                              className="h-8 border-transparent bg-transparent px-1 text-[13px] shadow-none hover:border-border focus:border-ring disabled:cursor-default disabled:opacity-100"
                             />
                           </TableCell>
-                          <TableCell className="align-top">
+                          <TableCell className={GRID_CELL_CLASS}>
                             <Input
                               value={row.name || ""}
                               disabled={!row.selected || disabled}
@@ -423,23 +454,32 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                               onBlur={() =>
                                 updateRow(row.preview_id, "name", normalizeProductName(row.name))
                               }
-                              className="h-8 text-xs"
+                              title={row.name}
+                              className="h-8 border-transparent bg-transparent px-1 text-[13px] font-medium shadow-none hover:border-border focus:border-ring disabled:cursor-default disabled:opacity-100"
                             />
                             {row.errors?.length > 0 && (
-                              <div className="mt-1 text-xs text-red-600">{row.errors.join(" ")}</div>
+                              <div className="mt-1 text-xs text-red-600">
+                                {row.errors.join(" ")}
+                              </div>
                             )}
                           </TableCell>
-                          <TableCell className="align-top">
-                            <div className="mb-1 text-xs text-muted-foreground">
-                              XML: {row.original_unit || "não informada"}
-                            </div>
+                          <TableCell
+                            className={`${GRID_CELL_CLASS} text-center font-medium text-foreground`}
+                          >
+                            {row.original_unit || "-"}
+                          </TableCell>
+                          <TableCell className={GRID_CELL_CLASS}>
                             <Select
                               value={row.unit || ""}
                               disabled={!row.selected || disabled}
                               onValueChange={(value) => updateRow(row.preview_id, "unit", value)}
                             >
                               <SelectTrigger
-                                className={`h-8 text-xs ${row.selected && !row.unit ? "border-amber-500" : ""}`}
+                                className={`h-8 bg-transparent text-[13px] disabled:opacity-100 ${
+                                  row.selected && !row.unit
+                                    ? "border-amber-500"
+                                    : "border-transparent hover:border-border"
+                                }`}
                               >
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
@@ -472,12 +512,18 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                               </label>
                             )}
                           </TableCell>
-                          <TableCell className="align-top text-right text-xs">
-                            <div>{row.quantity || "-"} un.</div>
-                            <div>{formatCurrency(row.unit_cost)}</div>
-                            <div className="mt-1 font-semibold">{formatCurrency(row.total_amount)}</div>
+                          <TableCell className={`${GRID_CELL_CLASS} text-right tabular-nums`}>
+                            {row.quantity || "-"}
                           </TableCell>
-                          <TableCell className="align-top">
+                          <TableCell className={`${GRID_CELL_CLASS} text-right tabular-nums`}>
+                            {formatCurrency(row.unit_cost)}
+                          </TableCell>
+                          <TableCell
+                            className={`${GRID_CELL_CLASS} text-right font-semibold tabular-nums text-foreground`}
+                          >
+                            {formatCurrency(row.total_amount)}
+                          </TableCell>
+                          <TableCell className={GRID_CELL_CLASS}>
                             <Select
                               value={row.cost_center_id || "none"}
                               disabled={!row.selected || disabled}
@@ -485,7 +531,7 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                                 updateRow(row.preview_id, "cost_center_id", value === "none" ? "" : value)
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs">
+                              <SelectTrigger className="h-8 border-transparent bg-transparent text-[13px] hover:border-border disabled:opacity-100">
                                 <SelectValue placeholder="Não informado" />
                               </SelectTrigger>
                               <SelectContent>
@@ -498,14 +544,14 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="align-top">
+                          <TableCell className={GRID_CELL_CLASS}>
                             {row.status === "existing" ? (
                               <Select
                                 value={row.action}
                                 disabled={!row.selected}
                                 onValueChange={(value) => updateRow(row.preview_id, "action", value)}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-8 border-transparent bg-transparent text-[13px] hover:border-border disabled:opacity-100">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -515,26 +561,34 @@ export default function MaterialNfeImportDialog({ open, onClose, onImported }) {
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-[13px]">
                                 {disabled ? "Não será processado" : "Cadastrar como novo"}
                               </span>
                             )}
                             {row.existing_material && (
                               <div className="mt-1 text-xs text-muted-foreground">
-                                {row.existing_material.code} • {formatCurrency(row.existing_material.unit_cost)}
+                                {row.existing_material.code} •{" "}
+                                {formatCurrency(row.existing_material.unit_cost)}
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="align-top">
-                            <Badge variant="outline" className={config.className}>
-                              {row.selected ? config.label : "Não selecionado"}
+                          <TableCell className={`${GRID_CELL_CLASS} border-r-0`}>
+                            <Badge
+                              variant="outline"
+                              className={`whitespace-nowrap ${config.className}`}
+                            >
+                              {disabled
+                                ? config.label
+                                : row.selected
+                                  ? config.label
+                                  : "Não selecionado"}
                             </Badge>
                           </TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
-                </Table>
+                </table>
               </div>
             </div>
           )}
