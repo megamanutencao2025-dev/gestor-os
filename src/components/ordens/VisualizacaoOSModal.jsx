@@ -16,8 +16,13 @@ export default function VisualizacaoOSModal({ isOpen, onClose, os: rawOs }) {
   if (!rawOs) return null;
   const os = normalizeOrdemServico(rawOs);
 
+  const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
   const formatCurrency = (value) => {
-    return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return toNumber(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   const getNivelColor = (nivel) => {
@@ -992,7 +997,7 @@ export default function VisualizacaoOSModal({ isOpen, onClose, os: rawOs }) {
                         <div>
                           <p className="text-slate-600 font-medium">Total de Horas:</p>
                           <p className="text-slate-900 font-semibold">
-                            {(servico.total_horas || 0).toFixed(2)}h
+                            {toNumber(servico.total_horas).toFixed(2)}h
                           </p>
                         </div>
                         <div>

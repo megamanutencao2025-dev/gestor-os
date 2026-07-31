@@ -777,10 +777,12 @@ export default function OrdemServicoPage() {
   };
 
   const handleViewOS = async (os) => {
+    setSelectedOSForView(os);
+
     try {
       setSelectedOSForView(await OrdemServico.get(os.id));
-    } catch {
-      setSelectedOSForView(os);
+    } catch (error) {
+      console.error("Erro ao carregar os detalhes da OS:", error);
     }
   };
 
